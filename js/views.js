@@ -309,7 +309,7 @@ const Views = {
         <b>PC:</b> en Chrome o Edge, ícono de instalar en la barra de direcciones.<br><br>
         Los datos se guardan solo en este dispositivo. En iPhone, la app instalada y Safari guardan datos por separado: para pasarlos usa <b>Copiar respaldo</b> en uno y <b>Pegar respaldo</b> en el otro. Haz un respaldo cada cierto tiempo.
       </div>
-      <div class="xs muted center mt">Mis Finanzas · v1.0</div>`;
+      <div class="center mt"><button class="btn secondary sm" data-action="check-update">${UI.icon('refresh')} Buscar actualización</button><div class="xs muted" style="margin-top:8px">Mis Finanzas · versión ${APP_VERSION}</div></div>`;
   },
 
   /* ----- Cuentas ----- */

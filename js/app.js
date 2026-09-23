@@ -1,5 +1,6 @@
 'use strict';
 /* Enrutador, eventos y arranque */
+const APP_VERSION = '1.5.1';
 const App = {
   state: { viewCur:'USD', month: thisMonthKey(), q:'', fAcc:'', pq:'', catKind:'expense', accCur:'all', accSort:'fav' },
   routes: [
@@ -49,7 +50,16 @@ const App = {
     Sync.init();
     this.autoRates();
     if ('serviceWorker' in navigator && (location.protocol==='https:' || ['localhost', '127.0.0.1'].includes(location.hostname))){
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
+      navigator.serviceWorker.register('sw.js').then(reg=>{
+        this._swReg = reg;
+        reg.update().catch(()=>{});
+        // cuando hay una versión nueva instalada, recargar para usarla
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if (refreshing) return; refreshing = true; if (navigator.serviceWorker.controller) location.reload(); });
+        reg.addEventListener('updatefound', ()=>{ const nw = reg.installing; if (!nw) return; nw.addEventListener('statechange', ()=>{ if (nw.state==='installed' && navigator.serviceWorker.controller) UI.toast('Actualizando la app…'); }); });
+        // revisar actualizaciones al volver a la app
+        document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible') reg.update().catch(()=>{}); });
+      }).catch(()=>{});
     }
   },
   async autoRates(){
@@ -153,6 +163,17 @@ const App = {
     'new-budget'(d){ Forms.budget({ catId: d.cat || null }); },
     'edit-budget'(d){ Forms.budget({ id: d.id }); },
     'sync-login'(){ Forms.syncLogin(); },
+    async 'check-update'(){
+      if (!navigator.onLine) return UI.toast('Sin conexión a internet', true);
+      UI.toast('Buscando actualización…');
+      try {
+        if (this._swReg){ await this._swReg.update(); if (this._swReg.installing || this._swReg.waiting) return; }
+        const r = await fetch('js/app.js?v=' + Date.now(), { cache:'no-store' }); const txt = await r.text();
+        const m = txt.match(/APP_VERSION = '([^']+)'/);
+        if (m && m[1]!==APP_VERSION){ UI.toast(`Hay una versión nueva (${m[1]}). Recargando…`); setTimeout(()=>location.reload(), 800); }
+        else UI.toast(`Ya tienes la última versión (${APP_VERSION})`);
+      } catch(e){ UI.toast('No se pudo comprobar', true); }
+    },
     async 'sync-logout'(){
       if (!(await UI.confirm('¿Cerrar sesión? Los datos quedan guardados en la nube y en este dispositivo.', { ok:'Cerrar sesión', danger:false }))) return;
       await Sync.signOut(); UI.toast('Sesión cerrada');

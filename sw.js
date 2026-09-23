@@ -1,5 +1,5 @@
 /* Service worker: la app funciona sin conexión; las tasas siempre van a la red */
-const CACHE = 'finanzas-v1.5.0';
+const CACHE = 'finanzas-v1.5.1';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './css/app.css', './js/config.js', './js/sync.js', './js/format.js', './js/store.js', './js/rates.js', './js/calc.js', './js/ui.js', './js/forms.js', './js/views.js', './js/app.js', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
@@ -16,8 +16,9 @@ self.addEventListener('fetch', e=>{
     return;
   }
   if (url.origin!==location.origin) return;
+  // red primero, revalidando siempre con el servidor (evita quedarse con archivos viejos del caché HTTP)
   e.respondWith(
-    fetch(e.request).then(r=>{ const copy = r.clone(); caches.open(CACHE).then(c=>c.put(e.request, copy)); return r; })
+    fetch(e.request, { cache:'no-cache' }).then(r=>{ if (r.ok){ const copy = r.clone(); caches.open(CACHE).then(c=>c.put(e.request, copy)); } return r; })
       .catch(()=>caches.match(e.request).then(r=>r || caches.match('./index.html')))
   );
 });
