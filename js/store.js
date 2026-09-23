@@ -46,12 +46,6 @@ const Store = {
     const inc = [['Salario','💼'],['Trading','📈'],['Ventas','🛒'],['Freelance','💻'],['Intereses','💹'],['Regalo','🎁'],['Otros','📦']];
     exp.forEach(([name,icon])=>this.data.categories.push({ id: uid(), name, icon, kind:'expense' }));
     inc.forEach(([name,icon])=>this.data.categories.push({ id: uid(), name, icon, kind:'income' }));
-    this.data.accounts.push(
-      { id: uid(), name:'Efectivo $', currency:'USD',  type:'efectivo', initial:0, createdAt: todayISO() },
-      { id: uid(), name:'Binance',    currency:'USDT', type:'exchange', initial:0, createdAt: todayISO() },
-      { id: uid(), name:'Banco Bs',   currency:'VES',  type:'banco',    initial:0, createdAt: todayISO() },
-      { id: uid(), name:'Cuenta COP', currency:'COP',  type:'banco',    initial:0, createdAt: todayISO() },
-    );
   },
 
   /* lecturas */

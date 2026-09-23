@@ -1,7 +1,7 @@
 'use strict';
 /* Enrutador, eventos y arranque */
 const App = {
-  state: { viewCur:'USD', month: thisMonthKey(), q:'', fAcc:'', pq:'', catKind:'expense' },
+  state: { viewCur:'USD', month: thisMonthKey(), q:'', fAcc:'', pq:'', catKind:'expense', accCur:'all', accSort:'fav' },
   routes: [
     [/^#\/?$/, ()=>Views.home(), 'home'],
     [/^#\/movimientos$/, ()=>Views.movements(), 'mov'],
@@ -137,6 +137,9 @@ const App = {
     'new-person'(){ Forms.person(null, p=>this.go('#/personas/' + p.id)); },
     'edit-person'(d){ const p = Store.person(d.id); if (p) Forms.person(p); },
     'new-account'(){ Forms.account(); },
+    'acc-filter'(d){ this.state.accCur = d.cur; this.render(); },
+    'acc-sort'(){ const order = ['fav', 'balance', 'name']; this.state.accSort = order[(order.indexOf(this.state.accSort) + 1) % order.length]; this.render(); },
+    'fav-account'(d){ const a = Store.account(d.id); if (!a) return; a.favorite = !a.favorite; Store.save(); this.render(); },
     'edit-account'(d){ const a = Store.account(d.id); if (a) Forms.account(a); },
     'new-category'(d){ Forms.category(null, d.kind || 'expense'); },
     'edit-category'(d){ const c = Store.category(d.id); if (c) Forms.category(c); },

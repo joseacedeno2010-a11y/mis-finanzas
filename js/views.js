@@ -66,7 +66,7 @@ const Views = {
     if (!curs.length) html += `<div class="card">${UI.empty('👛', 'Aún no tienes cuentas', 'Toca "Nueva cuenta" para crear la primera')}</div>`;
     for (const c of curs){
       const g = nw.byCurrency[c];
-      html += `<div class="card tight"><div class="row between" style="padding:6px 16px 4px"><div class="semibold">${CURRENCIES[c].name}</div><div class="right"><div class="bold">${fmtMoney(g.total, c)}</div>${c!=='USD' ? `<div class="xs muted">≈ ${fmtMoney(g.usd)}</div>` : ''}</div></div><div class="list">${g.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}"><div class="body"><div class="title">${esc(x.acc.name)}</div><div class="sub">${ACCOUNT_TYPES[x.acc.type] || ''}</div></div><div class="amt">${fmtMoney(x.balance, c)}</div><span class="chev">${UI.icon('chevron')}</span></button>`).join('')}</div></div>`;
+      html += `<div class="card tight"><div class="row between" style="padding:6px 16px 4px"><div class="semibold">${CURRENCIES[c].name}</div><div class="right"><div class="bold">${fmtMoney(g.total, c)}</div>${c!=='USD' ? `<div class="xs muted">≈ ${fmtMoney(g.usd)}</div>` : ''}</div></div><div class="list">${g.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}">${UI.accIcon(x.acc, 'sm')}<div class="body"><div class="title ellipsis">${esc(x.acc.name)}${x.acc.tag ? `<span class="tagb">${esc(x.acc.tag)}</span>` : ''}</div><div class="sub">${ACCOUNT_TYPES[x.acc.type] || ''}</div></div><div class="amt">${fmtMoney(x.balance, c)}</div><span class="chev">${UI.icon('chevron')}</span></button>`).join('')}</div></div>`;
     }
     html += `<div class="section-title"><h2>Préstamos</h2><a class="link" href="#/personas">Ver personas</a></div><div class="grid2"><button class="stat" data-go="#/personas"><div class="t">Te deben</div><div class="v green">${fmtMoney(nw.receivables.usd)}</div><div class="xs muted">${Object.keys(nw.receivables.byPerson).length} persona(s)</div></button><button class="stat" data-go="#/personas"><div class="t">Debes</div><div class="v red">${fmtMoney(nw.payables.usd)}</div><div class="xs muted">${Object.keys(nw.payables.byPerson).length} persona(s)</div></button></div>`;
     const up = Calc.upcomingPayments(45);
@@ -174,7 +174,7 @@ const Views = {
     const pname = id=>{ const p = Store.person(id); return p ? p.name : 'Persona eliminada'; };
     const curLine = byCur=>Object.keys(byCur).map(c=>fmtMoney(byCur[c], c)).join(' · ');
     html += `<div class="section-title"><h2>Activos</h2><span class="bold green">${fmtMoney(nw.assetsUSD)}</span></div><div class="card tight"><div class="list">`;
-    html += nw.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}"><div class="ic">${UI.icon('wallet')}</div><div class="body"><div class="title">${esc(x.acc.name)}</div><div class="sub">${fmtMoney(x.balance, x.acc.currency)}</div></div><div class="amt">${fmtMoney(x.usd)}</div></button>`).join('');
+    html += nw.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}">${UI.accIcon(x.acc, 'sm')}<div class="body"><div class="title">${esc(x.acc.name)}</div><div class="sub">${fmtMoney(x.balance, x.acc.currency)}</div></div><div class="amt">${fmtMoney(x.usd)}</div></button>`).join('');
     html += Object.entries(nw.receivables.byPerson).sort((a,b)=>b[1].usd - a[1].usd).map(([pid, v])=>`<button class="item clickable" data-go="#/personas/${pid}"><div class="ic g">🤝</div><div class="body"><div class="title">Te debe ${esc(pname(pid))}</div><div class="sub">${curLine(v.byCur)}</div></div><div class="amt green">${fmtMoney(v.usd)}</div></button>`).join('');
     html += `<div class="item"><div class="body muted">Cuentas ${fmtMoney(nw.accountsUSD)} + por cobrar ${fmtMoney(nw.receivables.usd)}</div></div></div></div>`;
     html += `<div class="section-title"><h2>Pasivos</h2><span class="bold red">${fmtMoney(nw.liabilitiesUSD)}</span></div><div class="card tight"><div class="list">`;
@@ -222,16 +222,27 @@ const Views = {
 
   /* ----- Cuentas ----- */
   accounts(){
-    const nw = Calc.netWorth();
+    const S = App.state; const vc = S.viewCur;
+    const all = Store.data.accounts.filter(a=>!a.archived);
     let html = this.back('#/menu', 'Cuentas', `<button class="iconbtn" data-action="new-account" aria-label="Nueva cuenta">${UI.icon('plus')}</button>`);
-    const curs = CURRENCY_ORDER.filter(c=>nw.byCurrency[c]);
-    if (!curs.length) html += `<div class="card">${UI.empty('👛', 'Sin cuentas', 'Crea la primera con el botón +')}</div>`;
-    for (const c of curs){
-      const g = nw.byCurrency[c];
-      html += `<div class="card tight"><div class="row between" style="padding:6px 16px 4px"><div class="semibold">${CURRENCIES[c].name}</div><div class="right"><div class="bold">${fmtMoney(g.total, c)}</div>${c!=='USD' ? `<div class="xs muted">≈ ${fmtMoney(g.usd)}</div>` : ''}</div></div><div class="list">${g.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}"><div class="ic">${UI.icon('wallet')}</div><div class="body"><div class="title">${esc(x.acc.name)}</div><div class="sub">${ACCOUNT_TYPES[x.acc.type] || ''}</div></div><div class="amt">${fmtMoney(x.balance, c)}</div><span class="chev">${UI.icon('chevron')}</span></button>`).join('')}</div></div>`;
+    if (!all.length){
+      html += `<div class="card">${UI.empty('👛', 'Aún no tienes cuentas', 'Crea una por cada banco, billetera o exchange, en su moneda y con su saldo actual.')}<button class="btn" data-action="new-account">${UI.icon('plus')} Crear mi primera cuenta</button></div>`;
+      return html;
     }
-    html += `<div class="card row between"><span class="muted">Total en cuentas</span><span class="bold">${fmtMoney(nw.accountsUSD)}</span></div>`;
-    html += `<button class="btn" data-action="new-account">${UI.icon('plus')} Nueva cuenta</button><div class="xs muted center mt">Crea una cuenta por cada banco, billetera o exchange, con su saldo actual como saldo inicial. Toca una cuenta para editarla o borrarla.</div>`;
+    const curs = CURRENCY_ORDER.filter(c=>all.some(a=>a.currency===c));
+    const filter = curs.includes(S.accCur) ? S.accCur : 'all';
+    let list = all.filter(a=>filter==='all' || a.currency===filter).map(a=>{ const bal = Calc.accountBalance(a); return { a, bal, usd: Calc.toUSD(bal, a.currency) }; });
+    const sorters = { fav: (x,y)=>(!!y.a.favorite - !!x.a.favorite) || y.usd - x.usd, balance: (x,y)=>y.usd - x.usd, name: (x,y)=>x.a.name.localeCompare(y.a.name) };
+    const sortLabels = { fav:'Favoritas', balance:'Saldo', name:'Nombre' };
+    list.sort(sorters[S.accSort] || sorters.fav);
+    const totalUSD = list.reduce((s,x)=>s + x.usd, 0);
+    const totalShown = filter==='all' ? fmtMoney(Calc.fromUSD(totalUSD, vc), vc) : fmtMoney(list.reduce((s,x)=>s + x.bal, 0), filter);
+    if (curs.length > 1) html += `<div class="seg mb"><button class="${filter==='all' ? 'active' : ''}" data-action="acc-filter" data-cur="all">Todas</button>${curs.map(c=>`<button class="${filter===c ? 'active' : ''}" data-action="acc-filter" data-cur="${c}">${CURRENCIES[c].short}</button>`).join('')}</div>`;
+    const slices = list.filter(x=>x.usd > 0).map(x=>({ value: x.usd, color: x.a.color || colorFor(x.a.name) }));
+    html += `<div class="card donut-card">${UI.donut(slices)}<div class="donut-info grow"><div class="label">Balance total</div><div class="big">${totalShown}</div>${filter==='all' ? `<div class="chips">${CURRENCY_ORDER.map(c=>`<button class="chip ${c===vc ? 'active' : ''}" data-action="viewcur" data-cur="${c}">${c}</button>`).join('')}</div>` : `<div class="small muted">≈ ${fmtMoney(totalUSD)}</div>`}</div></div>`;
+    html += `<div class="row between" style="margin:4px 4px 8px"><span class="small muted">${list.length} cuenta${list.length===1 ? '' : 's'}</span><button class="btn secondary sm" data-action="acc-sort">${UI.icon('sort')} ${sortLabels[S.accSort] || 'Favoritas'}</button></div>`;
+    html += `<div class="card tight"><div class="list">${list.map(x=>`<div class="item clickable" data-go="#/cuentas/${x.a.id}">${UI.accIcon(x.a)}<div class="body"><div class="title ellipsis">${esc(x.a.name)}${x.a.tag ? `<span class="tagb">${esc(x.a.tag)}</span>` : ''}</div><div class="sub">${fmtMoney(x.bal, x.a.currency)}${x.a.currency!=='USD' ? ` <span class="xs">≈ ${fmtMoney(x.usd)}</span>` : ''}</div></div><button class="starbtn ${x.a.favorite ? 'on' : ''}" data-action="fav-account" data-id="${x.a.id}" aria-label="Favorita">${UI.icon('star')}</button></div>`).join('')}</div></div>`;
+    html += `<button class="btn secondary" data-action="new-account">${UI.icon('plus')} Nueva cuenta</button>`;
     return html;
   },
   account(id){
@@ -239,7 +250,7 @@ const Views = {
     if (!a) return this.back('#/cuentas', 'Cuenta') + UI.empty('🤷', 'Cuenta no encontrada');
     const bal = Calc.accountBalance(a); const txs = Calc.accountTxs(id);
     let html = this.back('#/cuentas', a.name, `<button class="iconbtn" data-action="edit-account" data-id="${id}" aria-label="Editar">${UI.icon('edit')}</button>`);
-    html += `<div class="hero"><div class="label">${CURRENCIES[a.currency].name} · ${ACCOUNT_TYPES[a.type] || ''}</div><div class="big">${fmtMoney(bal, a.currency)}</div><div class="sub">${a.currency!=='USD' ? `≈ ${fmtMoney(Calc.toUSD(bal, a.currency))} · ` : ''}saldo inicial ${fmtMoney(a.initial, a.currency)}</div></div>`;
+    html += `<div class="hero"><div class="row" style="margin-bottom:8px">${UI.accIcon(a)}<div class="label">${CURRENCIES[a.currency].name} · ${ACCOUNT_TYPES[a.type] || ''}${a.tag ? ' · ' + esc(a.tag) : ''}</div></div><div class="big">${fmtMoney(bal, a.currency)}</div><div class="sub">${a.currency!=='USD' ? `≈ ${fmtMoney(Calc.toUSD(bal, a.currency))} · ` : ''}saldo inicial ${fmtMoney(a.initial, a.currency)}</div></div>`;
     html += `<div class="btnrow" style="margin:0 0 12px"><button class="btn sm secondary" data-action="new-tx" data-kind="income" data-acc="${id}">Ingreso</button><button class="btn sm secondary" data-action="new-tx" data-kind="expense" data-acc="${id}">Egreso</button><button class="btn sm secondary" data-action="new-transfer" data-acc="${id}">Transferir</button></div>`;
     html += txs.length ? this.txGroups(txs) : `<div class="card">${UI.empty('🧾', 'Sin movimientos en esta cuenta')}</div>`;
     return html;

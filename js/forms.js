@@ -261,19 +261,32 @@ const Forms = {
   /* ---------- Cuenta ---------- */
   account(a=null){
     const hasTx = a && Store.data.transactions.some(t=>t.accountId===a.id || t.toAccountId===a.id);
+    let color = (a && a.color) || ACCOUNT_COLORS[Store.data.accounts.length % ACCOUNT_COLORS.length];
     const s = UI.sheet({ title: a ? 'Editar cuenta' : 'Nueva cuenta', html: `
-      <div class="field"><label>Nombre</label><input name="name" value="${esc(a ? a.name : '')}" placeholder="Ej. Banesco, Binance, Nequi" autofocus></div>
-      <div class="field"><label>Moneda</label><select name="currency" ${hasTx ? 'disabled' : ''}>${this.currencyOptions(a ? a.currency : 'USD')}</select>${hasTx ? '<div class="hint">No se puede cambiar la moneda de una cuenta con movimientos.</div>' : ''}</div>
-      <div class="field"><label>Tipo</label><select name="type">${Object.entries(ACCOUNT_TYPES).map(([k,v])=>`<option value="${k}"${a && a.type===k ? ' selected' : ''}>${v}</option>`).join('')}</select></div>
-      <div class="field"><label>Saldo inicial</label><input name="initial" inputmode="decimal" value="${a ? a.initial : '0'}"><div class="hint">El saldo que tenía la cuenta cuando empezaste a registrar en la app.</div></div>
+      <div class="icon-preview"><div data-iconprev></div><div class="grow"><div class="semibold" data-nameprev>${esc(a ? a.name : 'Nueva cuenta')}</div><div class="small muted">Así se verá en la lista</div></div></div>
+      <div class="two"><div class="field"><label>Nombre</label><input name="name" value="${esc(a ? a.name : '')}" placeholder="Ej. Binance, Banesco" autofocus></div><div class="field"><label>Etiqueta</label><input name="tag" value="${esc(a ? a.tag || '' : '')}" placeholder="Ej. Jose, Hugueth"></div></div>
+      <div class="two"><div class="field"><label>Moneda</label><select name="currency" ${hasTx ? 'disabled' : ''}>${this.currencyOptions(a ? a.currency : 'USD')}</select></div><div class="field"><label>Tipo</label><select name="type">${Object.entries(ACCOUNT_TYPES).map(([k,v])=>`<option value="${k}"${a && a.type===k ? ' selected' : ''}>${v}</option>`).join('')}</select></div></div>
+      ${hasTx ? '<div class="hint" style="margin:-8px 0 12px">No se puede cambiar la moneda de una cuenta con movimientos.</div>' : ''}
+      <div class="field"><label>Saldo inicial</label><input name="initial" inputmode="decimal" value="${a ? a.initial : ''}" placeholder="0"><div class="hint">Lo que tiene la cuenta hoy, al empezar a registrar en la app.</div></div>
+      <div class="field"><label>Sitio web (para cargar el logo)</label><input name="site" value="${esc(a ? a.site || '' : '')}" placeholder="Ej. binance.com, cash.app, bancamiga.com" inputmode="url" autocapitalize="off"><div class="hint">Escribe la dirección del banco o app y el logo se carga solo.</div></div>
+      <div class="two"><div class="field"><label>Emoji (si no hay logo)</label><input name="icon" value="${esc(a ? a.icon || '' : '')}" placeholder="💵"></div><div class="field"><label>Color</label><div class="palette" data-palette>${ACCOUNT_COLORS.map(c=>`<button type="button" data-color="${c}" class="${c===color ? 'sel' : ''}" style="background:${c}" aria-label="Color"></button>`).join('')}</div></div></div>
       <button class="btn" data-save>Guardar</button>
       ${a ? '<button class="btn danger mt" data-del>Eliminar cuenta</button>' : ''}` });
     const f = s.body;
+    const prev = ()=>{
+      f.querySelector('[data-iconprev]').innerHTML = UI.accIcon({ name: this.val(f, 'name') || 'Cuenta', site: this.val(f, 'site'), icon: this.val(f, 'icon'), color }, 'lg');
+      f.querySelector('[data-nameprev]').textContent = this.val(f, 'name') || 'Nueva cuenta';
+    };
+    ['name', 'site', 'icon'].forEach(n=>{ const el = f.querySelector(`[name=${n}]`); let t; el.addEventListener('input', ()=>{ clearTimeout(t); t = setTimeout(prev, n==='site' ? 600 : 0); }); });
+    f.querySelector('[data-palette]').onclick = e=>{ const b = e.target.closest('[data-color]'); if (!b) return; color = b.dataset.color; f.querySelectorAll('[data-palette] button').forEach(x=>x.classList.toggle('sel', x===b)); prev(); };
+    prev();
     f.querySelector('[data-save]').onclick = ()=>{
       const name = this.val(f, 'name'); if (!name) return UI.toast('Escribe un nombre', true);
       const initial = parseAmount(this.val(f, 'initial') || '0'); if (!isFinite(initial)) return UI.toast('Saldo inicial inválido', true);
-      Store.upsert('accounts', { id: a ? a.id : uid(), name, currency: a && hasTx ? a.currency : this.val(f, 'currency'), type: this.val(f, 'type'), initial: round2(initial), createdAt: a ? a.createdAt : todayISO() });
-      s.close(); App.render(); UI.toast('Cuenta guardada');
+      if (siteDomain(this.val(f, 'site'))) AccIcons.forget(siteDomain(this.val(f, 'site')));
+      Store.upsert('accounts', { id: a ? a.id : uid(), name, tag: this.val(f, 'tag'), currency: a && hasTx ? a.currency : this.val(f, 'currency'), type: this.val(f, 'type'), initial: round2(initial),
+        site: siteDomain(this.val(f, 'site')), icon: this.val(f, 'icon'), color, favorite: a ? !!a.favorite : false, createdAt: a ? a.createdAt : todayISO() });
+      s.close(); if (!a) App.go('#/cuentas'); App.render(); UI.toast('Cuenta guardada');
     };
     const del = f.querySelector('[data-del]');
     if (del) del.onclick = async ()=>{ if (await UI.confirm(`¿Eliminar "${a.name}" y todos sus movimientos?`)){ Store.deleteAccount(a.id); s.close(); App.go('#/cuentas'); App.render(); UI.toast('Cuenta eliminada'); } };

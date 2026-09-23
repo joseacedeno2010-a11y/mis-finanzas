@@ -33,10 +33,49 @@ const ICONS = {
   info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
   file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
   more:'<circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/>',
+  star:'<path d="M12 2.5l2.94 6.1 6.7.9-4.9 4.7 1.2 6.7L12 17.7l-5.94 3.2 1.2-6.7-4.9-4.7 6.7-.9z"/>',
+  sort:'<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>',
+};
+const ACCOUNT_COLORS = ['#0f766e','#2563eb','#7c3aed','#db2777','#ea580c','#f0b90b','#16a34a','#0891b2','#111827','#dc2626'];
+function siteDomain(s){ return String(s||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split(/[\/?#]/)[0]; }
+/* Logos de cuentas por dominio: prueba Google, luego DuckDuckGo, luego el favicon del sitio.
+   Google devuelve un globo genérico de 16 px y DuckDuckGo uno de 48 px cuando no hay logo; se descartan. */
+const AccIcons = {
+  cache: (()=>{ try { return JSON.parse(localStorage.getItem('finanzas.icons') || '{}'); } catch(e){ return {}; } })(),
+  save(){ try { localStorage.setItem('finanzas.icons', JSON.stringify(this.cache)); } catch(e){} },
+  candidates(d){ return [`https://www.google.com/s2/favicons?domain=${encodeURIComponent(d)}&sz=128`, `https://icons.duckduckgo.com/ip3/${encodeURIComponent(d)}.ico`, `https://${d}/favicon.ico`]; },
+  accept(step, w){ return step===0 ? w > 16 : step===1 ? (w > 0 && w!==48) : w > 0; },
+  img(d){
+    if (d in this.cache) return this.cache[d] ? `<img src="${this.cache[d]}" alt="" referrerpolicy="no-referrer">` : '';
+    return `<img src="${this.candidates(d)[0]}" alt="" referrerpolicy="no-referrer" data-domain="${esc(d)}" data-step="0" onload="AccIcons.onload(this)" onerror="AccIcons.next(this)">`;
+  },
+  onload(img){ const step = +img.dataset.step; if (this.accept(step, img.naturalWidth)){ this.cache[img.dataset.domain] = img.src; this.save(); } else this.next(img); },
+  next(img){
+    const d = img.dataset.domain; const step = +img.dataset.step + 1; const c = this.candidates(d);
+    if (step >= c.length){ this.cache[d] = null; this.save(); img.remove(); return; }
+    img.dataset.step = step; img.src = c[step];
+  },
+  forget(d){ delete this.cache[d]; this.save(); },
 };
 const UI = {
   icon(name, cls=''){ return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||''}</svg>`; },
   avatar(name){ return `<div class="avatar" style="background:${colorFor(name)}">${esc(initials(name))}</div>`; },
+  /* ícono de cuenta: logo del sitio web, emoji o billetera, sobre fondo de color */
+  accIcon(acc, size=''){
+    const color = acc.color || colorFor(acc.name || '');
+    const inner = acc.icon ? esc(acc.icon) : this.icon('wallet');
+    const domain = siteDomain(acc.site);
+    if (domain) return `<div class="ic acc-ic ${size}" style="background:${color}1f;color:${color}">${AccIcons.img(domain)}<span>${inner}</span></div>`;
+    return `<div class="ic acc-ic ${size}" style="background:${color}1f;color:${color}">${inner}</div>`;
+  },
+  donut(items, stroke=13){
+    const R = 42, C = 2 * Math.PI * R; let off = 0;
+    const total = items.reduce((s,i)=>s + i.value, 0);
+    if (!total) return `<svg viewBox="0 0 100 100" class="donut"><circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--line)" stroke-width="${stroke}"/></svg>`;
+    const gap = items.length > 1 ? 1.6 : 0;
+    const arcs = items.map(i=>{ const len = i.value / total * C; const d = Math.max(0, len - gap); const s = `<circle cx="50" cy="50" r="${R}" fill="none" stroke="${i.color}" stroke-width="${stroke}" stroke-dasharray="${d.toFixed(2)} ${(C - d).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"/>`; off += len; return s; }).join('');
+    return `<svg viewBox="0 0 100 100" class="donut">${arcs}</svg>`;
+  },
   toast(msg, err=false){
     const t = document.getElementById('toast');
     t.textContent = msg; t.className = 'show'+(err?' err':'');

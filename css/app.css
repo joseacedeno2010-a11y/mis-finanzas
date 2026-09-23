@@ -179,3 +179,25 @@ h3{font-size:15px;margin:0 0 6px}
 .install-hint{font-size:13px;color:var(--muted);line-height:1.55}
 .install-hint b{color:var(--text)}
 .payrow{display:flex;justify-content:space-between;align-items:center;width:100%;padding:7px 0;border-top:1px solid var(--line);text-align:left;font-size:13px}
+
+/* cuentas */
+.acc-ic{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none;position:relative;overflow:hidden}
+.acc-ic svg{width:20px;height:20px}
+.acc-ic img{position:absolute;inset:0;margin:auto;width:62%;height:62%;object-fit:contain;border-radius:7px}
+.acc-ic img ~ span{display:none}
+.acc-ic.lg{width:64px;height:64px;border-radius:18px;font-size:30px}
+.acc-ic.lg svg{width:28px;height:28px}
+.acc-ic.sm{width:36px;height:36px;border-radius:10px;font-size:16px}
+.tagb{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;background:var(--card-2);color:var(--muted);margin-left:6px;vertical-align:middle}
+.starbtn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--line);flex:none}
+.starbtn svg{width:22px;height:22px}
+.starbtn.on{color:#f59e0b} .starbtn.on svg{fill:#f59e0b}
+.donut-card{display:flex;align-items:center;gap:16px}
+.donut{width:120px;height:120px;flex:none;transform:rotate(-90deg)}
+.donut circle{transition:stroke-dasharray .3s}
+.donut-info .label{font-size:13px;color:var(--muted)}
+.donut-info .big{font-size:28px;font-weight:800;letter-spacing:-.02em;margin:2px 0 8px;line-height:1.1}
+.palette{display:flex;gap:8px;flex-wrap:wrap}
+.palette button{width:30px;height:30px;border-radius:50%;border:3px solid transparent}
+.palette button.sel{border-color:var(--text)}
+.icon-preview{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:14px}
