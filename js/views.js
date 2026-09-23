@@ -56,8 +56,12 @@ const Views = {
     const dateStr = `${DAYS_SHORT[now.getDay()]} ${now.getDate()} de ${MONTHS[now.getMonth()]}`;
     let html = `<div class="topbar"><div class="grow"><div class="muted small">${dateStr[0].toUpperCase() + dateStr.slice(1)}</div><h1>Mis finanzas</h1></div><button class="iconbtn" data-go="#/tasas" aria-label="Tasas">${UI.icon('coins')}</button></div>`;
     html += `<div class="hero"><div class="label">Total en cuentas</div><div class="big">${noRate ? 'Sin tasa' : fmtMoney(total, vc)}</div>
-      <div class="sub">Patrimonio neto <b>${fmtMoney(nw.netUSD)}</b> · te deben <b>${fmtMoney(nw.receivables.usd)}</b> · debes <b>${fmtMoney(nw.payables.usd)}</b></div>
-      <div class="chips">${CURRENCY_ORDER.map(c=>`<button class="chip ${c===vc ? 'active' : ''}" data-action="viewcur" data-cur="${c}">${CURRENCIES[c].short}</button>`).join('')}</div></div>`;
+      <div class="chips">${CURRENCY_ORDER.map(c=>`<button class="chip ${c===vc ? 'active' : ''}" data-action="viewcur" data-cur="${c}">${CURRENCIES[c].short}</button>`).join('')}</div>
+      <div class="hero-tiles">
+        <button class="hero-tile" data-go="#/balance"><div class="t">${UI.icon('scale')} Patrimonio</div><div class="v">${fmtMoney(nw.netUSD)}</div></button>
+        <button class="hero-tile pos" data-go="#/personas"><div class="t">${UI.icon('down')} Te deben</div><div class="v">${fmtMoney(nw.receivables.usd)}</div></button>
+        <button class="hero-tile neg" data-go="#/personas"><div class="t">${UI.icon('up')} Debes</div><div class="v">${fmtMoney(nw.payables.usd)}</div></button>
+      </div></div>`;
     const lu = Rates.lastUpdate();
     html += `<div class="card" style="padding:12px 14px"><div class="row between"><div class="chips grow">${['VES','COP','EUR'].map(c=>`<button class="chip" data-action="edit-rate" data-cur="${c}">${fmtRate(c, rates[c].value)}${rates[c].manual ? ' ✎' : ''}</button>`).join('')}</div><button class="iconbtn ghost ${Rates.busy ? 'spin' : ''}" data-action="refresh-rates" aria-label="Actualizar tasas">${UI.icon('refresh')}</button></div><div class="xs muted" style="margin-top:6px">Por 1 USD · Binance P2P (venta USDT) · actualizado ${timeAgo(lu)}</div></div>`;
     html += `<div class="grid2"><button class="stat" data-go="#/movimientos"><div class="t"><span class="dot g">${UI.icon('up')}</span>Ingresos del mes</div><div class="v">${fmtMoney(ms.income)}</div></button><button class="stat" data-go="#/movimientos"><div class="t"><span class="dot r">${UI.icon('down')}</span>Egresos del mes</div><div class="v">${fmtMoney(ms.expense)}</div></button></div>`;
@@ -68,7 +72,6 @@ const Views = {
       const g = nw.byCurrency[c];
       html += `<div class="card tight"><div class="row between" style="padding:6px 16px 4px"><div class="semibold">${CURRENCIES[c].name}</div><div class="right"><div class="bold">${fmtMoney(g.total, c)}</div>${c!=='USD' ? `<div class="xs muted">≈ ${fmtMoney(g.usd)}</div>` : ''}</div></div><div class="list">${g.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}">${UI.accIcon(x.acc, 'sm')}<div class="body"><div class="title ellipsis">${esc(x.acc.name)}${x.acc.tag ? `<span class="tagb">${esc(x.acc.tag)}</span>` : ''}</div><div class="sub">${ACCOUNT_TYPES[x.acc.type] || ''}</div></div><div class="amt">${fmtMoney(x.balance, c)}</div><span class="chev">${UI.icon('chevron')}</span></button>`).join('')}</div></div>`;
     }
-    html += `<div class="section-title"><h2>Préstamos</h2><a class="link" href="#/personas">Ver personas</a></div><div class="grid2"><button class="stat" data-go="#/personas"><div class="t">Te deben</div><div class="v green">${fmtMoney(nw.receivables.usd)}</div><div class="xs muted">${Object.keys(nw.receivables.byPerson).length} persona(s)</div></button><button class="stat" data-go="#/personas"><div class="t">Debes</div><div class="v red">${fmtMoney(nw.payables.usd)}</div><div class="xs muted">${Object.keys(nw.payables.byPerson).length} persona(s)</div></button></div>`;
     const up = Calc.upcomingPayments(45);
     if (up.length){
       html += `<div class="card tight"><div class="card-head" style="padding:6px 16px 0"><h3>Próximos pagos</h3><span class="muted small">45 días</span></div><div class="list">${up.map(x=>{ const l = x.loan, p = Store.person(l.personId); const lent = l.direction==='lent'; const overdue = x.due.date < todayISO(); return `<button class="item clickable" data-go="#/personas/${l.personId}"><div class="ic ${lent ? 'g' : 'r'}">${UI.icon('calendar')}</div><div class="body"><div class="title ellipsis">${lent ? 'Cobrar a' : 'Pagar a'} ${esc(p ? p.name : '?')}</div><div class="sub ellipsis ${overdue ? 'red' : ''}">${fmtDate(x.due.date, 'day')}${overdue ? ' · vencido' : ''}${x.due.n > 1 ? ` · cuota ${x.due.k + 1}/${x.due.n}` : ''}${l.note ? ' · ' + esc(l.note) : ''}</div></div><div class="amt ${lent ? 'green' : 'red'}">${fmtMoney(x.due.amount, l.currency)}</div></button>`; }).join('')}</div></div>`;
@@ -173,13 +176,21 @@ const Views = {
     html += `<div class="card"><div class="card-head"><h3>Evolución</h3><span class="muted small">últimos 12 meses</span></div>${this.chartSVG(series)}</div>`;
     const pname = id=>{ const p = Store.person(id); return p ? p.name : 'Persona eliminada'; };
     const curLine = byCur=>Object.keys(byCur).map(c=>fmtMoney(byCur[c], c)).join(' · ');
+    const S = App.state;
+    const group = (key, title, icon, cls, total, rows, verb)=>{
+      const open = !!S[key];
+      let h = `<div class="item clickable" data-action="toggle" data-key="${key}"><div class="ic ${cls}">${icon}</div><div class="body"><div class="title">${title}</div><div class="sub">${rows.length ? `${rows.length} persona${rows.length===1 ? '' : 's'} · toca para ${open ? 'ocultar' : 'ver'} el detalle` : 'Nada pendiente'}</div></div><div class="amt ${cls==='g' ? 'green' : 'red'}">${fmtMoney(total)}</div>${rows.length ? `<span class="chev ${open ? 'open' : ''}">${UI.icon('chevron')}</span>` : ''}</div>`;
+      if (open && rows.length) h += `<div class="sublist">${rows.map(([pid, v])=>`<button class="item clickable" data-go="#/personas/${pid}">${UI.avatar(pname(pid))}<div class="body"><div class="title">${verb} ${esc(pname(pid))}</div><div class="sub">${curLine(v.byCur)}</div></div><div class="amt ${cls==='g' ? 'green' : 'red'}">${fmtMoney(v.usd)}</div></button>`).join('')}</div>`;
+      return h;
+    };
+    const recRows = Object.entries(nw.receivables.byPerson).sort((a,b)=>b[1].usd - a[1].usd);
+    const payRows = Object.entries(nw.payables.byPerson).sort((a,b)=>b[1].usd - a[1].usd);
     html += `<div class="section-title"><h2>Activos</h2><span class="bold green">${fmtMoney(nw.assetsUSD)}</span></div><div class="card tight"><div class="list">`;
-    html += nw.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}">${UI.accIcon(x.acc, 'sm')}<div class="body"><div class="title">${esc(x.acc.name)}</div><div class="sub">${fmtMoney(x.balance, x.acc.currency)}</div></div><div class="amt">${fmtMoney(x.usd)}</div></button>`).join('');
-    html += Object.entries(nw.receivables.byPerson).sort((a,b)=>b[1].usd - a[1].usd).map(([pid, v])=>`<button class="item clickable" data-go="#/personas/${pid}"><div class="ic g">🤝</div><div class="body"><div class="title">Te debe ${esc(pname(pid))}</div><div class="sub">${curLine(v.byCur)}</div></div><div class="amt green">${fmtMoney(v.usd)}</div></button>`).join('');
-    html += `<div class="item"><div class="body muted">Cuentas ${fmtMoney(nw.accountsUSD)} + por cobrar ${fmtMoney(nw.receivables.usd)}</div></div></div></div>`;
+    html += nw.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}">${UI.accIcon(x.acc, 'sm')}<div class="body"><div class="title">${esc(x.acc.name)}${x.acc.tag ? `<span class="tagb">${esc(x.acc.tag)}</span>` : ''}</div><div class="sub">${fmtMoney(x.balance, x.acc.currency)}</div></div><div class="amt">${fmtMoney(x.usd)}</div></button>`).join('');
+    html += group('showRec', 'Cuentas por cobrar', '🤝', 'g', nw.receivables.usd, recRows, 'Te debe');
+    html += `</div></div>`;
     html += `<div class="section-title"><h2>Pasivos</h2><span class="bold red">${fmtMoney(nw.liabilitiesUSD)}</span></div><div class="card tight"><div class="list">`;
-    const pays = Object.entries(nw.payables.byPerson).sort((a,b)=>b[1].usd - a[1].usd);
-    html += pays.length ? pays.map(([pid, v])=>`<button class="item clickable" data-go="#/personas/${pid}"><div class="ic r">💸</div><div class="body"><div class="title">Le debes a ${esc(pname(pid))}</div><div class="sub">${curLine(v.byCur)}</div></div><div class="amt red">${fmtMoney(v.usd)}</div></button>`).join('') : `<div class="item"><div class="body muted">No debes nada 🎉</div></div>`;
+    html += group('showPay', 'Cuentas por pagar', '💸', 'r', nw.payables.usd, payRows, 'Le debes a');
     html += `</div></div><div class="xs muted center">Todo convertido a USD con las tasas actuales. El histórico usa la tasa de cada fecha.</div>`;
     return html;
   },

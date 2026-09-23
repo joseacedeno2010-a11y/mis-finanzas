@@ -10,7 +10,7 @@ const Forms = {
     return html;
   },
   currencyOptions(sel){ return CURRENCY_ORDER.map(c=>`<option value="${c}"${c===sel?' selected':''}>${c} · ${CURRENCIES[c].name}</option>`).join(''); },
-  categoryOptions(kind, sel){ return Store.data.categories.filter(c=>c.kind===kind).map(c=>`<option value="${c.id}"${c.id===sel?' selected':''}>${c.icon} ${esc(c.name)}</option>`).join(''); },
+  categoryOptions(kind, sel){ return Store.data.categories.filter(c=>c.kind===kind).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}"${c.id===sel?' selected':''}>${c.icon} ${esc(c.name)}</option>`).join('') + `<option value="__new">＋ Nueva categoría…</option>`; },
   personOptions(sel){
     return `<option value=""${!sel?' selected':''}>Selecciona una persona</option>` +
       Store.peopleSorted().map(p=>`<option value="${p.id}"${p.id===sel?' selected':''}>${esc(p.name)}</option>`).join('') +
@@ -63,20 +63,28 @@ const Forms = {
     const accSel = f.querySelector('[name=account]');
     const upd = ()=>{ const c = this.selCur(accSel); f.querySelector('[data-curlbl]').textContent = c ? CURRENCIES[c].name : ''; };
     accSel.onchange = upd; upd();
+    const catSel = f.querySelector('[name=category]');
+    catSel.onchange = ()=>{
+      if (catSel.value!=='__new') return;
+      catSel.value = catSel.options[0] && catSel.options[0].value!=='__new' ? catSel.options[0].value : '';
+      this.category(null, kind, c=>{ catSel.innerHTML = this.categoryOptions(kind, c.id); });
+    };
     f.querySelector('[data-seg]').onclick = e=>{
       const b = e.target.closest('[data-k]'); if (!b) return;
       kind = b.dataset.k;
       f.querySelectorAll('[data-seg] button').forEach(x=>x.className='');
       b.className = 'active ' + (kind==='income' ? 'g' : 'r');
-      f.querySelector('[name=category]').innerHTML = this.categoryOptions(kind, null);
+      catSel.innerHTML = this.categoryOptions(kind, null);
     };
     f.querySelector('[data-save]').onclick = ()=>{
       const amount = this.amount(f); if (!amount) return UI.toast('Escribe un monto válido', true);
       const acc = Store.account(accSel.value); if (!acc) return UI.toast('Selecciona una cuenta', true);
+      const catId = catSel.value && catSel.value!=='__new' ? catSel.value : null;
+      if (!catId) return UI.toast('Elige o crea una categoría', true);
       const date = this.val(f, 'date') || todayISO();
       const keepRate = tx && tx.date===date && tx.currency===acc.currency ? tx.rateUSD : null;
       Store.saveTx({ id: tx ? tx.id : undefined, createdAt: tx ? tx.createdAt : undefined, kind, amount, currency: acc.currency, accountId: acc.id,
-        categoryId: this.val(f, 'category') || null, date, note: this.val(f, 'note'), rateUSD: keepRate });
+        categoryId: catId, date, note: this.val(f, 'note'), rateUSD: keepRate });
       s.close(); App.render(); UI.toast('Movimiento guardado');
     };
     const del = f.querySelector('[data-del]');
@@ -293,10 +301,10 @@ const Forms = {
   },
 
   /* ---------- Categoría ---------- */
-  category(c=null, kind='expense'){
+  category(c=null, kind='expense', onSaved=null){
     if (c) kind = c.kind;
-    const s = UI.sheet({ title: c ? 'Editar categoría' : 'Nueva categoría', html: `
-      ${c ? '' : `<div class="seg mb" data-seg><button data-k="expense" class="${kind==='expense'?'active r':''}">Egreso</button><button data-k="income" class="${kind==='income'?'active g':''}">Ingreso</button></div>`}
+    const s = UI.sheet({ title: c ? 'Editar categoría' : (kind==='income' ? 'Nueva categoría de ingreso' : 'Nueva categoría de egreso'), html: `
+      ${c || onSaved ? '' : `<div class="seg mb" data-seg><button data-k="expense" class="${kind==='expense'?'active r':''}">Egreso</button><button data-k="income" class="${kind==='income'?'active g':''}">Ingreso</button></div>`}
       <div class="two"><div class="field"><label>Emoji</label><input name="icon" value="${esc(c ? c.icon : '')}" placeholder="🍕"></div><div class="field"><label>Nombre</label><input name="name" value="${esc(c ? c.name : '')}" placeholder="Ej. Sofía" autofocus></div></div>
       <button class="btn" data-save>Guardar</button>
       ${c ? '<button class="btn danger mt" data-del>Eliminar categoría</button>' : ''}` });
@@ -305,8 +313,10 @@ const Forms = {
     if (seg) seg.onclick = e=>{ const b = e.target.closest('[data-k]'); if (!b) return; kind = b.dataset.k; seg.querySelectorAll('button').forEach(x=>x.className=''); b.className = 'active ' + (kind==='income' ? 'g' : 'r'); };
     f.querySelector('[data-save]').onclick = ()=>{
       const name = this.val(f, 'name'); if (!name) return UI.toast('Escribe un nombre', true);
-      Store.upsert('categories', { id: c ? c.id : uid(), name, icon: this.val(f, 'icon') || '🏷️', kind });
-      s.close(); App.render(); UI.toast('Categoría guardada');
+      const dup = Store.data.categories.find(x=>x.kind===kind && x.name.toLowerCase()===name.toLowerCase() && (!c || x.id!==c.id));
+      if (dup) return UI.toast('Ya existe una categoría con ese nombre', true);
+      const obj = Store.upsert('categories', { id: c ? c.id : uid(), name, icon: this.val(f, 'icon') || '🏷️', kind });
+      s.close(); if (onSaved) onSaved(obj); else App.render(); UI.toast('Categoría guardada');
     };
     const del = f.querySelector('[data-del]');
     if (del) del.onclick = async ()=>{ if (await UI.confirm(`¿Eliminar la categoría "${c.name}"? Los movimientos quedarán sin categoría.`)){ Store.remove('categories', c.id); s.close(); App.render(); UI.toast('Categoría eliminada'); } };

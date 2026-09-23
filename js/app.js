@@ -144,6 +144,7 @@ const App = {
     'new-category'(d){ Forms.category(null, d.kind || 'expense'); },
     'edit-category'(d){ const c = Store.category(d.id); if (c) Forms.category(c); },
     'cat-kind'(d){ this.state.catKind = d.kind; this.render(); },
+    'toggle'(d){ this.state[d.key] = !this.state[d.key]; this.render(); },
     'viewcur'(d){ this.state.viewCur = d.cur; this.render(); },
     'month'(d){ this.state.month = shiftMonth(this.state.month, Number(d.delta)); this.render(); },
     'refresh-rates'(d){ this.refreshRates(!!d.force); },
