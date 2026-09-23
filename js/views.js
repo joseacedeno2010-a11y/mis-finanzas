@@ -61,9 +61,9 @@ const Views = {
     const lu = Rates.lastUpdate();
     html += `<div class="card" style="padding:12px 14px"><div class="row between"><div class="chips grow">${['VES','COP','EUR'].map(c=>`<button class="chip" data-action="edit-rate" data-cur="${c}">${fmtRate(c, rates[c].value)}${rates[c].manual ? ' ✎' : ''}</button>`).join('')}</div><button class="iconbtn ghost ${Rates.busy ? 'spin' : ''}" data-action="refresh-rates" aria-label="Actualizar tasas">${UI.icon('refresh')}</button></div><div class="xs muted" style="margin-top:6px">Por 1 USD · Binance P2P (venta USDT) · actualizado ${timeAgo(lu)}</div></div>`;
     html += `<div class="grid2"><button class="stat" data-go="#/movimientos"><div class="t"><span class="dot g">${UI.icon('up')}</span>Ingresos del mes</div><div class="v">${fmtMoney(ms.income)}</div></button><button class="stat" data-go="#/movimientos"><div class="t"><span class="dot r">${UI.icon('down')}</span>Egresos del mes</div><div class="v">${fmtMoney(ms.expense)}</div></button></div>`;
-    html += `<div class="section-title"><h2>Mis cuentas</h2><a class="link" href="#/cuentas">Ver todas</a></div>`;
+    html += `<div class="section-title"><h2>Mis cuentas</h2><div class="row"><button class="link" data-action="new-account">+ Nueva cuenta</button><a class="link" href="#/cuentas">Ver todas</a></div></div>`;
     const curs = CURRENCY_ORDER.filter(c=>nw.byCurrency[c]);
-    if (!curs.length) html += `<div class="card">${UI.empty('👛', 'Aún no tienes cuentas', 'Créalas desde Menú → Cuentas')}</div>`;
+    if (!curs.length) html += `<div class="card">${UI.empty('👛', 'Aún no tienes cuentas', 'Toca "Nueva cuenta" para crear la primera')}</div>`;
     for (const c of curs){
       const g = nw.byCurrency[c];
       html += `<div class="card tight"><div class="row between" style="padding:6px 16px 4px"><div class="semibold">${CURRENCIES[c].name}</div><div class="right"><div class="bold">${fmtMoney(g.total, c)}</div>${c!=='USD' ? `<div class="xs muted">≈ ${fmtMoney(g.usd)}</div>` : ''}</div></div><div class="list">${g.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}"><div class="body"><div class="title">${esc(x.acc.name)}</div><div class="sub">${ACCOUNT_TYPES[x.acc.type] || ''}</div></div><div class="amt">${fmtMoney(x.balance, c)}</div><span class="chev">${UI.icon('chevron')}</span></button>`).join('')}</div></div>`;
@@ -222,6 +222,7 @@ const Views = {
       html += `<div class="card tight"><div class="row between" style="padding:6px 16px 4px"><div class="semibold">${CURRENCIES[c].name}</div><div class="right"><div class="bold">${fmtMoney(g.total, c)}</div>${c!=='USD' ? `<div class="xs muted">≈ ${fmtMoney(g.usd)}</div>` : ''}</div></div><div class="list">${g.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}"><div class="ic">${UI.icon('wallet')}</div><div class="body"><div class="title">${esc(x.acc.name)}</div><div class="sub">${ACCOUNT_TYPES[x.acc.type] || ''}</div></div><div class="amt">${fmtMoney(x.balance, c)}</div><span class="chev">${UI.icon('chevron')}</span></button>`).join('')}</div></div>`;
     }
     html += `<div class="card row between"><span class="muted">Total en cuentas</span><span class="bold">${fmtMoney(nw.accountsUSD)}</span></div>`;
+    html += `<button class="btn" data-action="new-account">${UI.icon('plus')} Nueva cuenta</button><div class="xs muted center mt">Crea una cuenta por cada banco, billetera o exchange, con su saldo actual como saldo inicial. Toca una cuenta para editarla o borrarla.</div>`;
     return html;
   },
   account(id){
