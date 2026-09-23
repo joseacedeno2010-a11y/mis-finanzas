@@ -32,6 +32,7 @@ const Store = {
         this.data.settings = Object.assign(def.settings, parsed.settings || {});
         this.data.settings.rates = Object.assign(def.settings.rates, (parsed.settings || {}).rates || {});
         if (!this.data.settings.rateHistory) this.data.settings.rateHistory = {};
+        this.migrate();
         return;
       }
     } catch(e){ console.warn('No se pudo leer el almacenamiento', e); }
@@ -40,6 +41,21 @@ const Store = {
     this.save();
   },
   save(){ localStorage.setItem(this.KEY, JSON.stringify(this.data)); },
+
+  /* ajustes a datos guardados por versiones anteriores */
+  migrate(){
+    const s = this.data.settings;
+    if (!s.seedCleaned){
+      // la v1.0 creaba 4 cuentas de ejemplo; se quitan si siguen sin usar
+      const sample = ['Efectivo $', 'Binance', 'Banco Bs', 'Cuenta COP'];
+      const used = new Set();
+      this.data.transactions.forEach(t=>{ used.add(t.accountId); used.add(t.toAccountId); });
+      this.data.loans.forEach(l=>{ used.add(l.accountId); (l.payments||[]).forEach(p=>used.add(p.accountId)); });
+      this.data.accounts = this.data.accounts.filter(a=>!(sample.includes(a.name) && !(Number(a.initial)||0) && !used.has(a.id) && !a.site && !a.tag && !a.icon && !a.favorite));
+      s.seedCleaned = true;
+      this.save();
+    }
+  },
 
   seed(){
     const exp = [['Alimentación','🍽️'],['Transporte','🚗'],['Hogar','🏠'],['Servicios','💡'],['Salud','🩺'],['Diversión','🍸'],['Viajes','✈️'],['Ropa','👕'],['Educación','📚'],['Regalos','🎁'],['Trading','📉'],['Inversión','⭐'],['Bienestar','🌿'],['Suscripciones','🔁'],['Otros','📦']];
