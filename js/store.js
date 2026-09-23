@@ -41,7 +41,7 @@ const Store = {
     this.seed();
     this.save();
   },
-  save(){ localStorage.setItem(this.KEY, JSON.stringify(this.data)); if (window.Sync) Sync.onLocalSave(); },
+  save(){ localStorage.setItem(this.KEY, JSON.stringify(this.data)); if (typeof Sync!=='undefined') Sync.onLocalSave(); },
 
   /* ajustes a datos guardados por versiones anteriores */
   migrate(){
@@ -179,6 +179,7 @@ const Store = {
     if (!d || !Array.isArray(d.accounts) || !Array.isArray(d.transactions)) throw new Error('El archivo no tiene el formato esperado');
     localStorage.setItem(this.KEY, JSON.stringify(d));
     this.load();
+    if (typeof Sync!=='undefined' && Sync.user) Sync.afterImport(); // sube todo lo pegado y combina con la nube
   },
   reset(){ this.data = this.defaults(); this.seed(); this.save(); },
 };

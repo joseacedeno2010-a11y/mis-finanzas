@@ -1,6 +1,6 @@
 'use strict';
 /* Enrutador, eventos y arranque */
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.5.2';
 const App = {
   state: { viewCur:'USD', month: thisMonthKey(), q:'', fAcc:'', pq:'', catKind:'expense', accCur:'all', accSort:'fav' },
   routes: [
@@ -174,6 +174,14 @@ const App = {
         else UI.toast(`Ya tienes la última versión (${APP_VERSION})`);
       } catch(e){ UI.toast('No se pudo comprobar', true); }
     },
+    async 'sync-push'(){
+      if (!Sync.user) return UI.toast('Inicia sesión primero', true);
+      if (!navigator.onLine) return UI.toast('Sin conexión a internet', true);
+      UI.toast('Subiendo todo a la nube…');
+      try { await Sync.pushAll(); this.render(); UI.toast('Todo subido ✅'); }
+      catch(e){ Sync.lastError = e.message; Sync.status = 'error'; this.render(); UI.toast('Falló la subida: ' + e.message, true); }
+    },
+    'sync-pull'(){ if (!Sync.user) return UI.toast('Inicia sesión primero', true); UI.toast('Reconectando con la nube…'); Sync.restart(); },
     async 'sync-logout'(){
       if (!(await UI.confirm('¿Cerrar sesión? Los datos quedan guardados en la nube y en este dispositivo.', { ok:'Cerrar sesión', danger:false }))) return;
       await Sync.signOut(); UI.toast('Sesión cerrada');

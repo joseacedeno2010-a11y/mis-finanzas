@@ -1,5 +1,5 @@
 /* Service worker: la app funciona sin conexión; las tasas siempre van a la red */
-const CACHE = 'finanzas-v1.5.1';
+const CACHE = 'finanzas-v1.5.2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './css/app.css', './js/config.js', './js/sync.js', './js/format.js', './js/store.js', './js/rates.js', './js/calc.js', './js/ui.js', './js/forms.js', './js/views.js', './js/app.js', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
