@@ -18,7 +18,7 @@ const Store = {
         },
         rateHistory: {},
       },
-      accounts: [], categories: [], people: [], loans: [], transactions: [],
+      accounts: [], categories: [], people: [], loans: [], transactions: [], budgets: [],
     };
   },
 
@@ -32,6 +32,7 @@ const Store = {
         this.data.settings = Object.assign(def.settings, parsed.settings || {});
         this.data.settings.rates = Object.assign(def.settings.rates, (parsed.settings || {}).rates || {});
         if (!this.data.settings.rateHistory) this.data.settings.rateHistory = {};
+        if (!Array.isArray(this.data.budgets)) this.data.budgets = [];
         this.migrate();
         return;
       }

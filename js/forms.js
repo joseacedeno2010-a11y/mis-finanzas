@@ -322,6 +322,30 @@ const Forms = {
     if (del) del.onclick = async ()=>{ if (await UI.confirm(`¿Eliminar la categoría "${c.name}"? Los movimientos quedarán sin categoría.`)){ Store.remove('categories', c.id); s.close(); App.render(); UI.toast('Categoría eliminada'); } };
   },
 
+  /* ---------- Presupuesto mensual por categoría ---------- */
+  budget({ id=null, catId=null }={}){
+    const existing = id ? Store.data.budgets.find(b=>b.id===id) : null;
+    const taken = new Set(Store.data.budgets.map(b=>b.id));
+    const cats = Store.data.categories.filter(c=>c.kind==='expense' && (!taken.has(c.id) || c.id===id)).sort((a,b)=>a.name.localeCompare(b.name));
+    const sel = id || catId || (cats[0] && cats[0].id);
+    const s = UI.sheet({ title: existing ? 'Editar presupuesto' : 'Nuevo presupuesto', html: `
+      <div class="field"><label>Categoría</label><select name="category" ${existing ? 'disabled' : ''}>${cats.map(c=>`<option value="${c.id}"${c.id===sel ? ' selected' : ''}>${c.icon} ${esc(c.name)}</option>`).join('')}</select></div>
+      ${this.amountHTML(existing ? existing.amount : null, 'USD al mes')}
+      <div class="small muted center mb">Límite mensual en dólares para esta categoría.</div>
+      <button class="btn" data-save>Guardar</button>
+      ${existing ? '<button class="btn danger mt" data-del>Quitar presupuesto</button>' : ''}` });
+    const f = s.body;
+    f.querySelector('[data-save]').onclick = ()=>{
+      const amount = this.amount(f); if (!amount) return UI.toast('Escribe un monto válido', true);
+      const cid = existing ? existing.id : this.val(f, 'category'); if (!cid) return UI.toast('Elige una categoría', true);
+      Store.upsert('budgets', { id: cid, amount });
+      s.close(); if (location.hash!=='#/presupuesto') App.go('#/presupuesto'); App.render(); UI.toast('Presupuesto guardado');
+    };
+    const del = f.querySelector('[data-del]');
+    if (del) del.onclick = async ()=>{ if (await UI.confirm('¿Quitar este presupuesto?', { ok:'Quitar' })){ Store.remove('budgets', existing.id); s.close(); App.render(); UI.toast('Presupuesto quitado'); } };
+    this.focusAmount(f);
+  },
+
   /* ---------- Sesión en la nube ---------- */
   syncLogin(){
     const s = UI.sheet({ title: 'Cuenta en la nube', html: `

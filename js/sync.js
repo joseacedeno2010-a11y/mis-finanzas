@@ -3,7 +3,7 @@
    Estructura: users/{uid}/meta/settings y colecciones users/{uid}/{accounts|categories|people|loans|transactions}/{id}.
    Estrategia: cada documento se escribe cuando cambia localmente; onSnapshot trae cambios de otros dispositivos. */
 const Sync = {
-  COLLS: ['accounts', 'categories', 'people', 'loans', 'transactions'],
+  COLLS: ['accounts', 'categories', 'people', 'loans', 'transactions', 'budgets'],
   config: window.FIREBASE_CONFIG || null,
   user: null,
   db: null,

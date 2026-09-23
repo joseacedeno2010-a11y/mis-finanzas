@@ -159,6 +159,13 @@ const Calc = {
     return out;
   },
   monthTxs(key){ return Store.data.transactions.filter(t=>monthKey(t.date)===key); },
+  budgetSummary(key){
+    const ms = this.monthSummary(key); const spentBy = {}; ms.cats.forEach(c=>spentBy[c.id] = c.usd);
+    const items = (Store.data.budgets || []).map(b=>{ const cat = Store.category(b.id); const spent = round2(spentBy[b.id] || 0); return { id: b.id, cat, amount: b.amount, spent, left: round2(b.amount - spent), pct: b.amount ? Math.round(spent / b.amount * 100) : 0 }; }).filter(x=>x.cat).sort((a,b)=>b.pct - a.pct);
+    const total = items.reduce((s,x)=>s + x.amount, 0), spent = items.reduce((s,x)=>s + x.spent, 0);
+    const others = ms.cats.filter(c=>!(Store.data.budgets || []).some(b=>b.id===c.id));
+    return { items, total: round2(total), spent: round2(spent), left: round2(total - spent), pct: total ? Math.round(spent / total * 100) : 0, others, expense: ms.expense };
+  },
   monthSummary(key){
     let income = 0, expense = 0; const byCat = {};
     for (const t of this.monthTxs(key)){

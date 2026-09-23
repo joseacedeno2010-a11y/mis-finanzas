@@ -81,6 +81,11 @@ const Views = {
       const g = nw.byCurrency[c];
       html += `<div class="card tight"><div class="row between" style="padding:6px 16px 4px"><div class="semibold">${CURRENCIES[c].name}</div><div class="right"><div class="bold">${fmtMoney(g.total, c)}</div>${c!=='USD' ? `<div class="xs muted">≈ ${fmtMoney(g.usd)}</div>` : ''}</div></div><div class="list">${g.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}">${UI.accIcon(x.acc, 'sm')}<div class="body"><div class="title ellipsis">${esc(x.acc.name)}${x.acc.tag ? `<span class="tagb">${esc(x.acc.tag)}</span>` : ''}</div><div class="sub">${ACCOUNT_TYPES[x.acc.type] || ''}</div></div><div class="amt">${fmtMoney(x.balance, c)}</div><span class="chev">${UI.icon('chevron')}</span></button>`).join('')}</div></div>`;
     }
+    if (Store.data.budgets.length){
+      const b = Calc.budgetSummary(thisMonthKey()); const cls = pct=>pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
+      html += `<button class="card" style="width:100%;text-align:left" data-go="#/presupuesto"><div class="card-head"><h3>Presupuesto del mes</h3><span class="link">Ver</span></div><div class="row between"><span class="semibold">${fmtMoney(b.spent)} <span class="muted small">de ${fmtMoney(b.total)}</span></span><span class="small ${b.left < 0 ? 'red bold' : 'muted'}">${b.left < 0 ? `Excedido ${fmtMoney(-b.left)}` : `Quedan ${fmtMoney(b.left)}`}</span></div><div class="progress"><div class="${cls(b.pct)}" style="width:${Math.min(100, b.pct)}%"></div></div>
+        ${b.items.slice(0, 3).map(x=>`<div class="row between xs muted" style="margin-top:8px"><span>${x.cat.icon} ${esc(x.cat.name)}</span><span class="${x.pct >= 100 ? 'red' : ''}">${x.pct}%</span></div><div class="progress" style="height:4px;margin-top:3px"><div class="${cls(x.pct)}" style="width:${Math.min(100, x.pct)}%"></div></div>`).join('')}</button>`;
+    }
     const up = Calc.upcomingPayments(45);
     if (up.length){
       html += `<div class="card tight"><div class="card-head" style="padding:6px 16px 0"><h3>Próximos pagos</h3><span class="muted small">45 días</span></div><div class="list">${up.map(x=>{ const l = x.loan, p = Store.person(l.personId); const lent = l.direction==='lent'; const overdue = x.due.date < todayISO(); return `<button class="item clickable" data-go="#/personas/${l.personId}"><div class="ic ${lent ? 'g' : 'r'}">${UI.icon('calendar')}</div><div class="body"><div class="title ellipsis">${lent ? 'Cobrar a' : 'Pagar a'} ${esc(p ? p.name : '?')}</div><div class="sub ellipsis ${overdue ? 'red' : ''}">${fmtDate(x.due.date, 'day')}${overdue ? ' · vencido' : ''}${x.due.n > 1 ? ` · cuota ${x.due.k + 1}/${x.due.n}` : ''}${l.note ? ' · ' + esc(l.note) : ''}</div></div><div class="amt ${lent ? 'green' : 'red'}">${fmtMoney(x.due.amount, l.currency)}</div></button>`; }).join('')}</div></div>`;
@@ -122,18 +127,74 @@ const Views = {
     return { amt, sub: pos && neg ? 'Te debe y le debes' : pos ? 'Te debe' : 'Le debes' };
   },
   people(){
+    const S = App.state; const f = S.peopleFilter || 'all';
     const s = Calc.loansSummary();
+    const nRec = Object.keys(s.receivables.byPerson).length, nPay = Object.keys(s.payables.byPerson).length;
+    const sortLabels = { balance:'Saldo', name:'Nombre', due:'Vencimiento' };
     return `<div class="topbar"><h1>Personas</h1><button class="iconbtn" data-action="new-person" aria-label="Nueva persona">${UI.icon('plus')}</button></div>
-      <div class="grid2"><div class="stat"><div class="t">Te deben</div><div class="v green">${fmtMoney(s.receivables.usd)}</div></div><div class="stat"><div class="t">Debes</div><div class="v red">${fmtMoney(s.payables.usd)}</div></div></div>
-      <div class="search">${UI.icon('search')}<input data-search-people placeholder="Buscar persona" value="${esc(App.state.pq || '')}"></div>
+      <div class="seg mb"><button class="${f==='all' ? 'active' : ''}" data-action="people-filter" data-f="all">Todas</button><button class="${f==='lent' ? 'active g' : ''}" data-action="people-filter" data-f="lent">Me deben</button><button class="${f==='borrowed' ? 'active r' : ''}" data-action="people-filter" data-f="borrowed">Debo</button></div>
+      <div class="grid2"><button class="stat ${f==='lent' ? 'sel' : ''}" data-action="people-filter" data-f="${f==='lent' ? 'all' : 'lent'}"><div class="t"><span class="dot g">${UI.icon('down')}</span>Por cobrar</div><div class="v green">${fmtMoney(s.receivables.usd)}</div><div class="xs muted">${nRec} persona${nRec===1 ? '' : 's'}</div></button><button class="stat ${f==='borrowed' ? 'sel' : ''}" data-action="people-filter" data-f="${f==='borrowed' ? 'all' : 'borrowed'}"><div class="t"><span class="dot r">${UI.icon('up')}</span>Por pagar</div><div class="v red">${fmtMoney(s.payables.usd)}</div><div class="xs muted">${nPay} persona${nPay===1 ? '' : 's'}</div></button></div>
+      <div class="row mb"><div class="search grow" style="margin:0">${UI.icon('search')}<input data-search-people placeholder="Buscar persona" value="${esc(S.pq || '')}"></div><button class="btn secondary sm" data-action="people-sort">${UI.icon('sort')} ${sortLabels[S.peopleSort || 'balance']}</button></div>
       <div id="list">${this.peopleList()}</div>`;
   },
   peopleList(){
-    const q = (App.state.pq || '').toLowerCase();
-    const people = Store.peopleSorted().filter(p=>!q || p.name.toLowerCase().includes(q));
-    if (!people.length) return `<div class="card">${UI.empty('👥', q ? 'Sin resultados' : 'Aún no hay personas', q ? '' : 'Agrega a quien le prestas o te presta dinero')}</div>${q ? '' : '<button class="btn" data-action="new-person">Agregar persona</button>'}`;
-    const rows = people.map(p=>({ p, bal: Calc.personBalances(p.id), usd: Calc.personNetUSD(p.id) })).sort((a,b)=>Math.abs(b.usd) - Math.abs(a.usd) || a.p.name.localeCompare(b.p.name));
-    return `<div class="card tight"><div class="list">${rows.map(r=>{ const l = this.balanceLines(r.bal); return `<button class="item clickable" data-go="#/personas/${r.p.id}">${UI.avatar(r.p.name)}<div class="body"><div class="title">${esc(r.p.name)}</div><div class="sub">${l.sub}</div></div><div class="amt">${l.amt}</div><span class="chev">${UI.icon('chevron')}</span></button>`; }).join('')}</div></div>`;
+    const S = App.state; const f = S.peopleFilter || 'all'; const q = (S.pq || '').toLowerCase(); const sort = S.peopleSort || 'balance';
+    const today = todayISO();
+    const rows = Store.peopleSorted().filter(p=>!q || p.name.toLowerCase().includes(q)).map(p=>{
+      const bal = Calc.personBalances(p.id); const open = Calc.personLoans(p.id).filter(l=>Calc.loanIsOpen(l));
+      const rec = open.filter(l=>l.direction==='lent'), pay = open.filter(l=>l.direction==='borrowed');
+      const usd = ls=>ls.reduce((s,l)=>s + Calc.toUSD(Calc.loanOutstanding(l), l.currency), 0);
+      const due = ls=>ls.map(l=>Calc.loanNextDue(l)).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date))[0] || null;
+      return { p, bal, rec, pay, recUSD: usd(rec), payUSD: usd(pay), dueRec: due(rec), duePay: due(pay) };
+    }).filter(r=>f==='lent' ? r.rec.length : f==='borrowed' ? r.pay.length : true);
+    const key = r=>f==='lent' ? r.recUSD : f==='borrowed' ? r.payUSD : Math.abs(r.recUSD - r.payUSD);
+    const dueOf = r=>f==='lent' ? r.dueRec : f==='borrowed' ? r.duePay : ([r.dueRec, r.duePay].filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date))[0] || null);
+    if (sort==='name') rows.sort((a,b)=>a.p.name.localeCompare(b.p.name));
+    else if (sort==='due') rows.sort((a,b)=>{ const da = dueOf(a), db = dueOf(b); if (!da && !db) return key(b) - key(a); if (!da) return 1; if (!db) return -1; return da.date.localeCompare(db.date); });
+    else rows.sort((a,b)=>key(b) - key(a) || a.p.name.localeCompare(b.p.name));
+    if (!rows.length){
+      const msg = q ? ['Sin resultados', ''] : f==='lent' ? ['Nadie te debe', 'Cuando prestes dinero, aparecerá aquí'] : f==='borrowed' ? ['No debes nada 🎉', ''] : ['Aún no hay personas', 'Agrega a quien le prestas o te presta dinero'];
+      return `<div class="card">${UI.empty(f==='borrowed' ? '✅' : '👥', msg[0], msg[1])}</div>${q || f!=='all' ? '' : '<button class="btn" data-action="new-person">Agregar persona</button>'}`;
+    }
+    const row = r=>{
+      const d = dueOf(r); const overdue = d && d.date < today;
+      const dueTxt = d ? `<span class="${overdue ? 'red' : ''}">${overdue ? 'venció' : 'vence'} ${fmtDate(d.date, 'short')}</span>` : '';
+      let amt, sub;
+      if (f==='lent'){ amt = Object.keys(r.bal).filter(c=>r.bal[c].lent > 0).map(c=>`<div class="green">${fmtMoney(r.bal[c].lent, c)}</div>`).join(''); sub = `${r.rec.length} préstamo${r.rec.length===1 ? '' : 's'}`; }
+      else if (f==='borrowed'){ amt = Object.keys(r.bal).filter(c=>r.bal[c].borrowed > 0).map(c=>`<div class="red">${fmtMoney(r.bal[c].borrowed, c)}</div>`).join(''); sub = `${r.pay.length} préstamo${r.pay.length===1 ? '' : 's'}`; }
+      else { const l = this.balanceLines(r.bal); amt = l.amt; sub = l.sub; }
+      return `<button class="item clickable" data-go="#/personas/${r.p.id}">${UI.avatar(r.p.name)}<div class="body"><div class="title">${esc(r.p.name)}${overdue ? ' <span class="badge r">vencido</span>' : ''}</div><div class="sub">${sub}${dueTxt ? ' · ' + dueTxt : ''}</div></div><div class="amt">${amt}</div><span class="chev">${UI.icon('chevron')}</span></button>`;
+    };
+    if (f!=='all') return `<div class="card tight"><div class="list">${rows.map(row).join('')}</div></div>`;
+    const withBal = rows.filter(r=>r.rec.length || r.pay.length), clear = rows.filter(r=>!r.rec.length && !r.pay.length);
+    let html = '';
+    if (withBal.length) html += `<div class="day-head"><span>Con saldo pendiente</span><span>${withBal.length}</span></div><div class="card tight"><div class="list">${withBal.map(row).join('')}</div></div>`;
+    if (clear.length) html += `<div class="day-head"><span>Al día</span><span>${clear.length}</span></div><div class="card tight"><div class="list">${clear.map(row).join('')}</div></div>`;
+    return html;
+  },
+
+  /* ----- Presupuesto ----- */
+  budget(){
+    const S = App.state; const key = S.bMonth || thisMonthKey(); const isCur = key===thisMonthKey();
+    const b = Calc.budgetSummary(key);
+    const [y, m] = key.split('-').map(Number); const dim = new Date(y, m, 0).getDate();
+    const daysLeft = isCur ? dim - new Date().getDate() + 1 : 0;
+    let html = this.back('#/menu', 'Presupuesto', `<button class="iconbtn" data-action="new-budget" aria-label="Nuevo presupuesto">${UI.icon('plus')}</button>`);
+    html += `<div class="monthnav"><button data-action="bmonth" data-delta="-1">${UI.icon('left')}</button><div class="m">${fmtMonth(key)}</div><button data-action="bmonth" data-delta="1">${UI.icon('chevron')}</button></div>`;
+    if (!Store.data.budgets.length){
+      html += `<div class="card">${UI.empty('🎯', 'Sin presupuestos todavía', 'Define cuánto quieres gastar al mes en cada categoría y la app te muestra cuánto llevas y cuánto te queda.')}<button class="btn" data-action="new-budget">${UI.icon('plus')} Crear mi primer presupuesto</button></div>`;
+      return html;
+    }
+    const cls = pct=>pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
+    html += `<div class="hero"><div class="label">Gastado en ${fmtMonth(key).toLowerCase()}</div><div class="big">${fmtMoney(b.spent)}</div><div class="sub">de ${fmtMoney(b.total)} presupuestados · ${b.left >= 0 ? `quedan <b>${fmtMoney(b.left)}</b>` : `excedido por <b>${fmtMoney(-b.left)}</b>`}</div>
+      <div class="progress hero-progress"><div class="${cls(b.pct)}" style="width:${Math.min(100, b.pct)}%"></div></div>
+      ${isCur ? `<div class="hero-tiles"><div class="hero-tile"><div class="t">Usado</div><div class="v">${b.pct}%</div></div><div class="hero-tile"><div class="t">Días restantes</div><div class="v">${daysLeft}</div></div><div class="hero-tile ${b.left >= 0 ? 'pos' : 'neg'}"><div class="t">Por día</div><div class="v">${fmtMoney(b.left >= 0 && daysLeft ? b.left / daysLeft : 0)}</div></div></div>` : ''}</div>`;
+    html += `<div class="card tight"><div class="list">${b.items.map(x=>`<button class="item clickable" data-action="edit-budget" data-id="${x.id}"><div class="ic">${x.cat.icon}</div><div class="body"><div class="row between"><span class="title">${esc(x.cat.name)}</span><span class="small ${x.left < 0 ? 'red bold' : 'muted'}">${x.left < 0 ? `Excedido ${fmtMoney(-x.left)}` : `Quedan ${fmtMoney(x.left)}`}</span></div><div class="progress"><div class="${cls(x.pct)}" style="width:${Math.min(100, x.pct)}%"></div></div><div class="xs muted" style="margin-top:4px">${fmtMoney(x.spent)} de ${fmtMoney(x.amount)} · ${x.pct}%</div></div></button>`).join('')}</div></div>`;
+    if (b.others.length){
+      html += `<div class="section-title"><h2>Gastos sin presupuesto</h2><span class="muted small">${fmtMoney(b.others.reduce((s,c)=>s + c.usd, 0))}</span></div><div class="card tight"><div class="list">${b.others.map(c=>`<div class="item"><div class="ic">${c.cat ? c.cat.icon : '🧾'}</div><div class="body"><div class="title">${esc(c.cat ? c.cat.name : 'Sin categoría')}</div><div class="sub">${fmtMoney(c.usd)} este mes</div></div>${c.cat ? `<button class="btn secondary sm" data-action="new-budget" data-cat="${c.id}">Asignar</button>` : ''}</div>`).join('')}</div></div>`;
+    }
+    html += `<div class="xs muted center mt">Los presupuestos son mensuales y en dólares. Los gastos en otras monedas se convierten con la tasa del día en que se registraron.</div>`;
+    return html;
   },
   person(id){
     const p = Store.person(id);
@@ -232,7 +293,7 @@ const Views = {
   menu(){
     const item = (go, icon, label)=>`<button data-go="${go}"><div class="ic">${UI.icon(icon)}</div>${label}</button>`;
     return `<div class="topbar"><h1>Menú</h1></div>
-      <h2>Gestión</h2><div class="menu-grid">${item('#/cuentas', 'wallet', 'Cuentas')}${item('#/categorias', 'tag', 'Categorías')}${item('#/personas', 'users', 'Personas')}${item('#/tasas', 'coins', 'Tasas')}</div>
+      <h2>Gestión</h2><div class="menu-grid">${item('#/cuentas', 'wallet', 'Cuentas')}${item('#/presupuesto', 'target', 'Presupuesto')}${item('#/categorias', 'tag', 'Categorías')}${item('#/personas', 'users', 'Personas')}${item('#/tasas', 'coins', 'Tasas')}${item('#/balance', 'scale', 'Balance')}</div>
       <h2>Nube</h2>${this.syncCard()}
       <h2>Datos</h2><div class="card tight"><div class="list">
         <button class="item clickable" data-action="copy-json"><div class="ic">${UI.icon('file')}</div><div class="body"><div class="title">Copiar respaldo</div><div class="sub">Copia todos tus datos al portapapeles para pegarlos en otro dispositivo o app</div></div></button>

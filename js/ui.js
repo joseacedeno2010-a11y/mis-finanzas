@@ -35,6 +35,7 @@ const ICONS = {
   more:'<circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/>',
   star:'<path d="M12 2.5l2.94 6.1 6.7.9-4.9 4.7 1.2 6.7L12 17.7l-5.94 3.2 1.2-6.7-4.9-4.7 6.7-.9z"/>',
   sort:'<path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/>',
+  target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
 };
 const ACCOUNT_COLORS = ['#0f766e','#2563eb','#7c3aed','#db2777','#ea580c','#f0b90b','#16a34a','#0891b2','#111827','#dc2626'];
 function siteDomain(s){ return String(s||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split(/[\/?#]/)[0]; }

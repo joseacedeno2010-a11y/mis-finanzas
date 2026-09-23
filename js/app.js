@@ -13,6 +13,7 @@ const App = {
     [/^#\/cuentas\/([\w-]+)$/, m=>Views.account(m[1]), 'menu'],
     [/^#\/categorias$/, ()=>Views.categories(), 'menu'],
     [/^#\/tasas$/, ()=>Views.rates(), 'menu'],
+    [/^#\/presupuesto$/, ()=>Views.budget(), 'menu'],
   ],
   tabs: [['#/', 'home', 'Inicio', 'home'], ['#/movimientos', 'list', 'Movimientos', 'mov'], ['#/personas', 'users', 'Personas', 'people'], ['#/balance', 'scale', 'Balance', 'balance'], ['#/menu', 'grid', 'Menú', 'menu']],
   _lastHash: null,
@@ -146,6 +147,11 @@ const App = {
     'edit-category'(d){ const c = Store.category(d.id); if (c) Forms.category(c); },
     'cat-kind'(d){ this.state.catKind = d.kind; this.render(); },
     'toggle'(d){ this.state[d.key] = !this.state[d.key]; this.render(); },
+    'people-filter'(d){ this.state.peopleFilter = d.f; this.render(); },
+    'people-sort'(){ const o = ['balance', 'name', 'due']; this.state.peopleSort = o[(o.indexOf(this.state.peopleSort || 'balance') + 1) % o.length]; this.render(); },
+    'bmonth'(d){ this.state.bMonth = shiftMonth(this.state.bMonth || thisMonthKey(), Number(d.delta)); this.render(); },
+    'new-budget'(d){ Forms.budget({ catId: d.cat || null }); },
+    'edit-budget'(d){ Forms.budget({ id: d.id }); },
     'sync-login'(){ Forms.syncLogin(); },
     async 'sync-logout'(){
       if (!(await UI.confirm('¿Cerrar sesión? Los datos quedan guardados en la nube y en este dispositivo.', { ok:'Cerrar sesión', danger:false }))) return;
