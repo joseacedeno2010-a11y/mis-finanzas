@@ -214,11 +214,20 @@ const Views = {
     return `<svg class="chart" viewBox="0 0 ${W} ${H}"><line x1="${padL}" x2="${W - padR}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>${bars}</svg>`;
   },
 
+  syncCard(){
+    if (!Sync.enabled()) return `<div class="card"><div class="row"><div class="ic acc-ic" style="background:var(--card-2)">☁️</div><div class="grow"><div class="semibold">Sincronización no configurada</div><div class="small muted">Los datos se guardan solo en este dispositivo.</div></div></div></div>`;
+    if (Sync.status==='error') return `<div class="card"><div class="row"><div class="ic acc-ic" style="background:var(--red-soft)">⚠️</div><div class="grow"><div class="semibold red">Error de sincronización</div><div class="small muted">${esc(Sync.lastError)}</div></div></div></div>`;
+    if (!Sync.user) return `<div class="card"><div class="row"><div class="ic acc-ic" style="background:var(--card-2)">☁️</div><div class="grow"><div class="semibold">Guarda tus datos en la nube</div><div class="small muted">Inicia sesión para tenerlos en todos tus dispositivos y no perderlos si borras la app.</div></div></div><button class="btn mt" data-action="sync-login">Iniciar sesión o crear cuenta</button></div>`;
+    const syncing = Sync.status==='syncing';
+    return `<div class="card"><div class="row"><div class="ic acc-ic" style="background:var(--green-soft)">${syncing ? '⏳' : '✅'}</div><div class="grow"><div class="semibold">${syncing ? 'Sincronizando…' : 'Sincronizado'}</div><div class="small muted ellipsis">${esc(Sync.user.email || '')}</div></div><button class="btn secondary sm" data-action="sync-logout">Salir</button></div><div class="xs muted mt">Cada cambio se guarda en la nube al instante. Sin conexión, se guarda aquí y se sube después.</div></div>`;
+  },
+
   /* ----- Menú ----- */
   menu(){
     const item = (go, icon, label)=>`<button data-go="${go}"><div class="ic">${UI.icon(icon)}</div>${label}</button>`;
     return `<div class="topbar"><h1>Menú</h1></div>
       <h2>Gestión</h2><div class="menu-grid">${item('#/cuentas', 'wallet', 'Cuentas')}${item('#/categorias', 'tag', 'Categorías')}${item('#/personas', 'users', 'Personas')}${item('#/tasas', 'coins', 'Tasas')}</div>
+      <h2>Nube</h2>${this.syncCard()}
       <h2>Datos</h2><div class="card tight"><div class="list">
         <button class="item clickable" data-action="copy-json"><div class="ic">${UI.icon('file')}</div><div class="body"><div class="title">Copiar respaldo</div><div class="sub">Copia todos tus datos al portapapeles para pegarlos en otro dispositivo o app</div></div></button>
         <button class="item clickable" data-action="paste-json"><div class="ic">${UI.icon('check')}</div><div class="body"><div class="title">Pegar respaldo</div><div class="sub">Pega aquí un respaldo copiado para restaurarlo</div></div></button>

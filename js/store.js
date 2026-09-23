@@ -40,7 +40,7 @@ const Store = {
     this.seed();
     this.save();
   },
-  save(){ localStorage.setItem(this.KEY, JSON.stringify(this.data)); },
+  save(){ localStorage.setItem(this.KEY, JSON.stringify(this.data)); if (window.Sync) Sync.onLocalSave(); },
 
   /* ajustes a datos guardados por versiones anteriores */
   migrate(){

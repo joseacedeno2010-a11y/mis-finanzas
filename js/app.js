@@ -45,6 +45,7 @@ const App = {
     });
     document.addEventListener('keydown', e=>{ if (e.key==='Escape'){ const ov = document.querySelector('#modal-root .overlay:last-child'); if (ov){ ov.remove(); if (!document.querySelector('#modal-root .overlay')) document.body.style.overflow=''; } } });
     this.render();
+    Sync.init();
     this.autoRates();
     if ('serviceWorker' in navigator && (location.protocol==='https:' || ['localhost', '127.0.0.1'].includes(location.hostname))){
       navigator.serviceWorker.register('sw.js').catch(()=>{});
@@ -145,6 +146,11 @@ const App = {
     'edit-category'(d){ const c = Store.category(d.id); if (c) Forms.category(c); },
     'cat-kind'(d){ this.state.catKind = d.kind; this.render(); },
     'toggle'(d){ this.state[d.key] = !this.state[d.key]; this.render(); },
+    'sync-login'(){ Forms.syncLogin(); },
+    async 'sync-logout'(){
+      if (!(await UI.confirm('¿Cerrar sesión? Los datos quedan guardados en la nube y en este dispositivo.', { ok:'Cerrar sesión', danger:false }))) return;
+      await Sync.signOut(); UI.toast('Sesión cerrada');
+    },
     'viewcur'(d){ this.state.viewCur = d.cur; this.render(); },
     'month'(d){ this.state.month = shiftMonth(this.state.month, Number(d.delta)); this.render(); },
     'refresh-rates'(d){ this.refreshRates(!!d.force); },
@@ -181,7 +187,7 @@ const App = {
       inp.click();
     },
     async 'reset'(){
-      if (!(await UI.confirm('¿Borrar TODOS los datos de este dispositivo? No se puede deshacer.'))) return;
+      if (!(await UI.confirm(Sync.user ? '¿Borrar TODOS los datos, también en la nube? No se puede deshacer.' : '¿Borrar TODOS los datos de este dispositivo? No se puede deshacer.'))) return;
       Store.reset(); this.go('#/'); this.render(); UI.toast('Datos borrados');
     },
   },

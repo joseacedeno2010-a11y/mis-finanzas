@@ -322,6 +322,30 @@ const Forms = {
     if (del) del.onclick = async ()=>{ if (await UI.confirm(`¿Eliminar la categoría "${c.name}"? Los movimientos quedarán sin categoría.`)){ Store.remove('categories', c.id); s.close(); App.render(); UI.toast('Categoría eliminada'); } };
   },
 
+  /* ---------- Sesión en la nube ---------- */
+  syncLogin(){
+    const s = UI.sheet({ title: 'Cuenta en la nube', html: `
+      <div class="small muted mb">Con tu cuenta, los datos se guardan en la nube y aparecen igual en el teléfono y en la PC. Si es tu primera vez, crea la cuenta con tu correo y una contraseña.</div>
+      <div class="field"><label>Correo</label><input name="email" type="email" inputmode="email" autocapitalize="off" autocomplete="username" placeholder="tu@gmail.com" autofocus></div>
+      <div class="field"><label>Contraseña</label><input name="password" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></div>
+      <button class="btn" data-login>Entrar</button>
+      <div class="btnrow"><button class="btn secondary" data-signup>Crear cuenta</button><button class="btn secondary" data-reset>Olvidé mi contraseña</button></div>
+      <div class="xs muted center mt">Lo que ya tengas en este dispositivo se sube a la nube al entrar.</div>` });
+    const f = s.body;
+    const creds = ()=>({ email: this.val(f, 'email'), password: f.querySelector('[name=password]').value });
+    const busy = on=>f.querySelectorAll('button').forEach(b=>b.disabled = on);
+    const run = async (fn, okMsg)=>{
+      const c = creds(); if (!c.email) return UI.toast('Escribe tu correo', true);
+      busy(true);
+      try { await fn(c); s.close(); if (okMsg) UI.toast(okMsg); }
+      catch(e){ UI.toast(Sync.errorText(e), true); }
+      busy(false);
+    };
+    f.querySelector('[data-login]').onclick = ()=>run(c=>{ if (!c.password) throw { code:'auth/wrong-password' }; return Sync.signIn(c.email, c.password); }, 'Sesión iniciada');
+    f.querySelector('[data-signup]').onclick = ()=>run(c=>{ if (!c.password) throw { code:'auth/weak-password' }; return Sync.signUp(c.email, c.password); }, 'Cuenta creada');
+    f.querySelector('[data-reset]').onclick = ()=>run(c=>Sync.resetPassword(c.email), 'Te enviamos un correo para cambiar la contraseña');
+  },
+
   /* ---------- Tasa manual ---------- */
   rate(cur){
     const r = Store.data.settings.rates[cur]; const c = CURRENCIES[cur];
