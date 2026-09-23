@@ -47,11 +47,11 @@ const Store = {
     const s = this.data.settings;
     if (!s.seedCleaned){
       // la v1.0 creaba 4 cuentas de ejemplo; se quitan si siguen sin usar
-      const sample = ['Efectivo $', 'Binance', 'Banco Bs', 'Cuenta COP'];
+      const sample = ['Efectivo $|USD|efectivo', 'Binance|USDT|exchange', 'Banco Bs|VES|banco', 'Cuenta COP|COP|banco'];
       const used = new Set();
       this.data.transactions.forEach(t=>{ used.add(t.accountId); used.add(t.toAccountId); });
       this.data.loans.forEach(l=>{ used.add(l.accountId); (l.payments||[]).forEach(p=>used.add(p.accountId)); });
-      this.data.accounts = this.data.accounts.filter(a=>!(sample.includes(a.name) && !(Number(a.initial)||0) && !used.has(a.id) && !a.site && !a.tag && !a.icon && !a.favorite));
+      this.data.accounts = this.data.accounts.filter(a=>!(sample.includes(`${a.name}|${a.currency}|${a.type}`) && !(Number(a.initial)||0) && !used.has(a.id) && !a.site && !a.tag && !a.icon && !a.favorite));
       s.seedCleaned = true;
       this.save();
     }

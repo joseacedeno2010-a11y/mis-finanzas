@@ -151,6 +151,24 @@ const App = {
     'edit-rate'(d){ Forms.rate(d.cur); },
     'toggle-auto'(){ Store.data.settings.autoRates = !Store.data.settings.autoRates; Store.save(); this.render(); },
     'export-json'(){ this.download(`finanzas-respaldo-${todayISO()}.json`, Store.exportJSON()); UI.toast('Respaldo generado'); },
+    async 'copy-json'(){
+      const text = JSON.stringify(Store.data);
+      try { await navigator.clipboard.writeText(text); UI.toast('Respaldo copiado. Pégalo en el otro dispositivo con "Pegar respaldo".'); }
+      catch(e){
+        const s = UI.sheet({ title:'Copiar respaldo', html:`<div class="small muted mb">Mantén presionado el texto, elige "Seleccionar todo" y luego "Copiar".</div><div class="field"><textarea readonly style="min-height:160px;font-size:12px">${esc(text)}</textarea></div>` });
+        const ta = s.body.querySelector('textarea'); ta.focus(); ta.select();
+      }
+    },
+    'paste-json'(){
+      const s = UI.sheet({ title:'Pegar respaldo', html:`<div class="small muted mb">Pega aquí el respaldo copiado. Reemplazará todos los datos de este dispositivo.</div><div class="field"><textarea name="json" placeholder='{"version":1, ...}' style="min-height:140px;font-size:12px"></textarea></div><button class="btn" data-restore>Restaurar datos</button>` });
+      s.body.querySelector('[data-restore]').onclick = async ()=>{
+        const text = s.body.querySelector('[name=json]').value.trim(); if (!text) return UI.toast('Pega el respaldo primero', true);
+        const n = Store.data.transactions.length + Store.data.accounts.length + Store.data.people.length;
+        if (n && !(await UI.confirm('Esto reemplazará los datos actuales de este dispositivo. ¿Continuar?', { ok:'Restaurar', danger:false }))) return;
+        try { Store.importJSON(text); s.close(); this.go('#/'); this.render(); UI.toast('Datos restaurados ✅'); }
+        catch(e){ UI.toast('El texto no es un respaldo válido', true); }
+      };
+    },
     'export-csv'(){ this.download(`movimientos-${todayISO()}.csv`, this.csv(), 'text/csv;charset=utf-8'); UI.toast('CSV generado'); },
     'import-json'(){
       const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';

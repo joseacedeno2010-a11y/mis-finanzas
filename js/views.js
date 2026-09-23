@@ -62,6 +62,9 @@ const Views = {
         <button class="hero-tile pos" data-go="#/personas"><div class="t">${UI.icon('down')} Te deben</div><div class="v">${fmtMoney(nw.receivables.usd)}</div></button>
         <button class="hero-tile neg" data-go="#/personas"><div class="t">${UI.icon('up')} Debes</div><div class="v">${fmtMoney(nw.payables.usd)}</div></button>
       </div></div>`;
+    if (!Store.data.accounts.length && !Store.data.transactions.length && !Store.data.people.length){
+      html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">¿Ya tenías datos registrados?</div><div class="small muted" style="margin:4px 0 10px">En el iPhone, Safari y la app instalada guardan datos por separado. Abre la app en Safari, ve a Menú → <b>Copiar respaldo</b>, y luego pégalo aquí.</div><div class="btnrow" style="margin:0"><button class="btn sm" data-action="paste-json">Pegar respaldo</button><button class="btn sm secondary" data-action="new-account">Empezar de cero</button></div></div>`;
+    }
     const lu = Rates.lastUpdate();
     html += `<div class="card" style="padding:12px 14px"><div class="row between"><div class="chips grow">${['VES','COP','EUR'].map(c=>`<button class="chip" data-action="edit-rate" data-cur="${c}">${fmtRate(c, rates[c].value)}${rates[c].manual ? ' ✎' : ''}</button>`).join('')}</div><button class="iconbtn ghost ${Rates.busy ? 'spin' : ''}" data-action="refresh-rates" aria-label="Actualizar tasas">${UI.icon('refresh')}</button></div><div class="xs muted" style="margin-top:6px">Por 1 USD · Binance P2P (venta USDT) · actualizado ${timeAgo(lu)}</div></div>`;
     html += `<div class="grid2"><button class="stat" data-go="#/movimientos"><div class="t"><span class="dot g">${UI.icon('up')}</span>Ingresos del mes</div><div class="v">${fmtMoney(ms.income)}</div></button><button class="stat" data-go="#/movimientos"><div class="t"><span class="dot r">${UI.icon('down')}</span>Egresos del mes</div><div class="v">${fmtMoney(ms.expense)}</div></button></div>`;
@@ -217,6 +220,8 @@ const Views = {
     return `<div class="topbar"><h1>Menú</h1></div>
       <h2>Gestión</h2><div class="menu-grid">${item('#/cuentas', 'wallet', 'Cuentas')}${item('#/categorias', 'tag', 'Categorías')}${item('#/personas', 'users', 'Personas')}${item('#/tasas', 'coins', 'Tasas')}</div>
       <h2>Datos</h2><div class="card tight"><div class="list">
+        <button class="item clickable" data-action="copy-json"><div class="ic">${UI.icon('file')}</div><div class="body"><div class="title">Copiar respaldo</div><div class="sub">Copia todos tus datos al portapapeles para pegarlos en otro dispositivo o app</div></div></button>
+        <button class="item clickable" data-action="paste-json"><div class="ic">${UI.icon('check')}</div><div class="body"><div class="title">Pegar respaldo</div><div class="sub">Pega aquí un respaldo copiado para restaurarlo</div></div></button>
         <button class="item clickable" data-action="export-json"><div class="ic">${UI.icon('download')}</div><div class="body"><div class="title">Exportar respaldo</div><div class="sub">Archivo JSON con todos tus datos</div></div></button>
         <button class="item clickable" data-action="export-csv"><div class="ic">${UI.icon('file')}</div><div class="body"><div class="title">Exportar movimientos</div><div class="sub">CSV para Excel o Google Sheets</div></div></button>
         <button class="item clickable" data-action="import-json"><div class="ic">${UI.icon('upload')}</div><div class="body"><div class="title">Importar respaldo</div><div class="sub">Reemplaza los datos actuales con un archivo JSON</div></div></button>
@@ -226,7 +231,7 @@ const Views = {
         <b>iPhone:</b> abre esta página en Safari, toca Compartir y luego <b>Añadir a pantalla de inicio</b>.<br>
         <b>Android:</b> en Chrome, menú ⋮ y <b>Instalar aplicación</b>.<br>
         <b>PC:</b> en Chrome o Edge, ícono de instalar en la barra de direcciones.<br><br>
-        Los datos se guardan solo en este dispositivo. Haz un respaldo cada cierto tiempo desde "Exportar respaldo".
+        Los datos se guardan solo en este dispositivo. En iPhone, la app instalada y Safari guardan datos por separado: para pasarlos usa <b>Copiar respaldo</b> en uno y <b>Pegar respaldo</b> en el otro. Haz un respaldo cada cierto tiempo.
       </div>
       <div class="xs muted center mt">Mis Finanzas · v1.0</div>`;
   },
