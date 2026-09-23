@@ -8,8 +8,14 @@ Doble clic en `abrir.cmd` (necesita Node instalado). Se abre en `http://localhos
 
 ## Usar en el teléfono
 
-- **Misma wifi, sin instalar:** con el servidor corriendo, abre en el teléfono la dirección que muestra la consola (`http://192.168.x.x:8765`).
-- **Instalar como app (recomendado):** la app necesita estar en una dirección `https`. Sube la carpeta completa (sin `capturas/`) a un hosting estático gratuito, por ejemplo Netlify Drop o GitHub Pages, y luego en Safari usa *Compartir → Añadir a pantalla de inicio*.
+La app está publicada en **https://joseacedeno2010-a11y.github.io/mis-finanzas/** (GitHub Pages, desde la rama `main`).
+
+- **iPhone:** abre esa dirección en Safari, toca *Compartir → Añadir a pantalla de inicio*.
+- **Android:** en Chrome, menú ⋮ → *Instalar aplicación*.
+
+## Actualizar
+
+Cada `git push` a `main` publica la versión nueva en uno o dos minutos. Al cambiar archivos de la app, subir la versión de `CACHE` en `sw.js` para que los teléfonos descarguen los archivos nuevos. Los datos del usuario no se ven afectados por las actualizaciones.
 
 Los datos de la PC y del teléfono son independientes. Para pasarlos de uno a otro usa *Menú → Exportar respaldo* e *Importar respaldo*.
 
