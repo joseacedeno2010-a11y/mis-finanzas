@@ -1,40 +1,74 @@
 'use strict';
 /* Enrutador, eventos y arranque */
-const APP_VERSION = '1.5.2';
+const APP_VERSION = '2.0.0';
+const ACCENTS = { teal:'#0f766e', blue:'#2563eb', violet:'#7c3aed', pink:'#db2777', orange:'#ea580c', amber:'#d97706', green:'#16a34a', cyan:'#0891b2', slate:'#334155' };
 const App = {
   state: { viewCur:'USD', month: thisMonthKey(), q:'', fAcc:'', pq:'', catKind:'expense', accCur:'all', accSort:'fav' },
   routes: [
     [/^#\/?$/, ()=>Views.home(), 'home'],
-    [/^#\/movimientos$/, ()=>Views.movements(), 'mov'],
-    [/^#\/personas$/, ()=>Views.people(), 'people'],
-    [/^#\/personas\/([\w-]+)$/, m=>Views.person(m[1]), 'people'],
-    [/^#\/balance$/, ()=>Views.balance(), 'balance'],
+    [/^#\/finanzas$/, ()=>Views.finanzas(), 'fin'],
+    [/^#\/movimientos$/, ()=>Views.movements(), 'fin'],
+    [/^#\/personas$/, ()=>Views.people(), 'fin'],
+    [/^#\/personas\/([\w-]+)$/, m=>Views.person(m[1]), 'fin'],
+    [/^#\/balance$/, ()=>Views.balance(), 'fin'],
     [/^#\/menu$/, ()=>Views.menu(), 'menu'],
-    [/^#\/cuentas$/, ()=>Views.accounts(), 'menu'],
-    [/^#\/cuentas\/([\w-]+)$/, m=>Views.account(m[1]), 'menu'],
+    [/^#\/cuentas$/, ()=>Views.accounts(), 'fin'],
+    [/^#\/cuentas\/([\w-]+)$/, m=>Views.account(m[1]), 'fin'],
     [/^#\/categorias$/, ()=>Views.categories(), 'menu'],
     [/^#\/tasas$/, ()=>Views.rates(), 'menu'],
-    [/^#\/presupuesto$/, ()=>Views.budget(), 'menu'],
+    [/^#\/presupuesto$/, ()=>Views.budget(), 'fin'],
   ],
-  tabs: [['#/', 'home', 'Inicio', 'home'], ['#/movimientos', 'list', 'Movimientos', 'mov'], ['#/personas', 'users', 'Personas', 'people'], ['#/balance', 'scale', 'Balance', 'balance'], ['#/menu', 'grid', 'Menú', 'menu']],
   _lastHash: null,
+
+  /* ---------- Módulos (js/modules/*.js) ----------
+     App.registerModule({ id, name, icon, tab:{hash,label,icon,order}, collections:[...], routes:[[re, fn, tabKey]],
+       menu:[{hash,icon,label}], homeCards:[{order, render}], fab:[{label,sub,icon,cls,run}], actions:{}, css:'', init(){} }) */
+  modules: [],
+  registerModule(m){
+    if (!m || !m.id) return;
+    this.modules.push(m);
+    (m.collections || []).forEach(c=>{ if (!Store.extraCollections.includes(c)) Store.extraCollections.push(c); });
+    Object.assign(this.actions, m.actions || {});
+    if (m.css){ const st = document.createElement('style'); st.dataset.module = m.id; st.textContent = m.css; document.head.appendChild(st); }
+  },
+  module(id){ return this.modules.find(m=>m.id===id); },
+  allRoutes(){ return this.routes.concat(...this.modules.map(m=>m.routes || [])); },
+  tabs(){
+    const mods = this.modules.filter(m=>m.tab).sort((a,b)=>(a.tab.order || 50) - (b.tab.order || 50)).slice(0, 2).map(m=>[m.tab.hash, m.tab.icon || m.icon || 'grid', m.tab.label || m.name, m.tab.key || m.id]);
+    return [['#/', 'home', 'Inicio', 'home'], ['#/finanzas', 'wallet', 'Finanzas', 'fin']].concat(mods, [['#/menu', 'grid', 'Menú', 'menu']]);
+  },
+  homeCards(){ return this.modules.flatMap(m=>(m.homeCards || []).map(c=>Object.assign({ module:m.id }, c))).sort((a,b)=>(a.order || 50) - (b.order || 50)); },
+
+  /* ---------- apariencia ---------- */
+  applyTheme(){
+    const ui = Store.data.settings.ui || {};
+    const root = document.documentElement;
+    root.dataset.theme = ui.theme || 'system';
+    const accent = ACCENTS[ui.accent] || ui.accent || ACCENTS.teal;
+    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent-soft', accent + '22');
+    const meta = document.querySelector('meta[name=theme-color]'); if (meta) meta.content = accent;
+  },
 
   go(hash){ if (location.hash===hash) this.render(); else location.hash = hash; },
   render(){
     const hash = location.hash || '#/';
     let html = '', tab = 'home';
-    for (const [re, fn, t] of this.routes){ const m = hash.match(re); if (m){ try { html = fn(m); } catch(e){ console.error(e); html = `<div class="card"><div class="red bold">Error al mostrar esta pantalla</div><div class="small muted">${esc(e.message)}</div></div>`; } tab = t; break; } }
+    for (const [re, fn, t] of this.allRoutes()){ const m = hash.match(re); if (m){ try { html = fn(m); } catch(e){ console.error(e); html = `<div class="card"><div class="red bold">Error al mostrar esta pantalla</div><div class="small muted">${esc(e.message)}</div></div>`; } tab = t; break; } }
     if (!html){ location.hash = '#/'; return; }
     const y = window.scrollY;
     document.getElementById('app').innerHTML = html;
     document.querySelectorAll('#tabbar a').forEach(a=>a.classList.toggle('active', a.dataset.tab===tab));
     if (this._lastHash===hash) window.scrollTo(0, y); else window.scrollTo(0, 0);
     this._lastHash = hash;
+    this.modules.forEach(m=>{ if (m.afterRender) try { m.afterRender(hash); } catch(e){ console.error(e); } });
   },
 
   init(){
     Store.load();
-    document.getElementById('tabbar').innerHTML = this.tabs.map(([h, i, l, t])=>`<a href="${h}" data-tab="${t}">${UI.icon(i)}<span>${l}</span></a>`).join('');
+    this.applyTheme();
+    this.modules.forEach(m=>{ if (m.init) try { m.init(); } catch(e){ console.error('módulo', m.id, e); } });
+    document.getElementById('tabbar').innerHTML = this.tabs().map(([h, i, l, t])=>`<a href="${h}" data-tab="${t}">${UI.icon(i)}<span>${l}</span></a>`).join('');
     document.getElementById('fab').innerHTML = UI.icon('plus');
     window.addEventListener('hashchange', ()=>this.render());
     document.addEventListener('click', e=>this.onClick(e));
@@ -47,8 +81,10 @@ const App = {
     });
     document.addEventListener('keydown', e=>{ if (e.key==='Escape'){ const ov = document.querySelector('#modal-root .overlay:last-child'); if (ov){ ov.remove(); if (!document.querySelector('#modal-root .overlay')) document.body.style.overflow=''; } } });
     this.render();
+    Sync.COLLS = Sync.COLLS.concat(Store.extraCollections.filter(c=>!Sync.COLLS.includes(c)));
     Sync.init();
     this.autoRates();
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>this.applyTheme());
     if ('serviceWorker' in navigator && (location.protocol==='https:' || ['localhost', '127.0.0.1'].includes(location.hostname))){
       navigator.serviceWorker.register('sw.js').then(reg=>{
         this._swReg = reg;
@@ -103,19 +139,32 @@ const App = {
 
   actions: {
     async fab(){
-      const v = await UI.options('¿Qué quieres registrar?', [
+      const finance = [
         { value:'expense', icon:'down', cls:'r', label:'Egreso', sub:'Un gasto desde una cuenta' },
         { value:'income', icon:'up', cls:'g', label:'Ingreso', sub:'Dinero que entra a una cuenta' },
         { value:'transfer', icon:'swap', cls:'b', label:'Transferencia', sub:'Mover entre cuentas, incluso en otra moneda' },
         { value:'lent', icon:'dollar', cls:'r', label:'Le presté a alguien', sub:'Se suma a lo que esa persona te debe' },
         { value:'borrowed', icon:'dollar', cls:'g', label:'Me prestaron', sub:'Se suma a lo que le debes a esa persona' },
         { value:'pay', icon:'check', cls:'a', label:'Abono o pago de préstamo', sub:'Registrar un pago parcial o total' },
-      ]);
+      ];
+      const modOpts = this.modules.flatMap(m=>(m.fab || []).map(o=>Object.assign({}, o, { value: o })));
+      const hash = location.hash || '#/';
+      const isFinance = /^#\/(finanzas|movimientos|personas|balance|cuentas|presupuesto)/.test(hash);
+      const list = isFinance ? finance.concat(modOpts) : modOpts.concat(finance);
+      const v = await UI.options('¿Qué quieres registrar?', list);
       if (!v) return;
+      if (v && typeof v==='object' && v.run) return v.run.call(this);
       if (v==='expense' || v==='income') Forms.transaction(null, v);
       else if (v==='transfer') Forms.transfer();
       else if (v==='lent' || v==='borrowed') Forms.loan({ direction: v });
       else if (v==='pay') this.actions['pay-any'].call(this);
+    },
+    'set-theme'(d){ Store.data.settings.ui = Object.assign({}, Store.data.settings.ui, { theme: d.theme }); Store.save(); this.applyTheme(); this.render(); },
+    'set-accent'(d){ Store.data.settings.ui = Object.assign({}, Store.data.settings.ui, { accent: d.accent }); Store.save(); this.applyTheme(); this.render(); },
+    'set-name'(){
+      const ui = Store.data.settings.ui || {};
+      const s = UI.sheet({ title:'Tu nombre', html:`<div class="field"><label>¿Cómo quieres que te salude la app?</label><input name="name" value="${esc(ui.name || '')}" placeholder="Ej. José" autofocus></div><button class="btn" data-save>Guardar</button>` });
+      s.body.querySelector('[data-save]').onclick = ()=>{ Store.data.settings.ui = Object.assign({}, ui, { name: s.body.querySelector('[name=name]').value.trim() }); Store.save(); s.close(); this.render(); };
     },
     'new-tx'(d){ Forms.transaction(null, d.kind || 'expense', d.acc || null); },
     'new-transfer'(d){ Forms.transfer(null, d.acc || null); },

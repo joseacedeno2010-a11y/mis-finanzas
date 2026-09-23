@@ -3,8 +3,14 @@
 const Store = {
   KEY: 'finanzas.v1',
   data: null,
+  extraCollections: [],   // colecciones que registran los módulos (arrays de objetos con id)
 
   defaults(){
+    const d = this._defaults();
+    for (const c of this.extraCollections) d[c] = [];
+    return d;
+  },
+  _defaults(){
     return {
       version: 1,
       settings: {
@@ -33,6 +39,7 @@ const Store = {
         this.data.settings.rates = Object.assign(def.settings.rates, (parsed.settings || {}).rates || {});
         if (!this.data.settings.rateHistory) this.data.settings.rateHistory = {};
         if (!Array.isArray(this.data.budgets)) this.data.budgets = [];
+        for (const c of this.extraCollections) if (!Array.isArray(this.data[c])) this.data[c] = [];
         this.migrate();
         return;
       }
@@ -76,12 +83,14 @@ const Store = {
 
   /* genérico */
   upsert(coll, obj){
+    if (!Array.isArray(this.data[coll])) this.data[coll] = [];
     const arr = this.data[coll];
     const i = arr.findIndex(x=>x.id===obj.id);
     if (i>=0) arr[i] = Object.assign(arr[i], obj); else arr.push(obj);
     this.save(); return arr[i>=0?i:arr.length-1];
   },
-  remove(coll, id){ this.data[coll] = this.data[coll].filter(x=>x.id!==id); this.save(); },
+  remove(coll, id){ this.data[coll] = (this.data[coll] || []).filter(x=>x.id!==id); this.save(); },
+  list(coll){ if (!Array.isArray(this.data[coll])) this.data[coll] = []; return this.data[coll]; },
 
   /* movimientos */
   saveTx(tx){

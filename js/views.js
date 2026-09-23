@@ -44,17 +44,53 @@ const Views = {
     }).join('');
   },
 
-  /* ----- Inicio ----- */
+  /* ----- Inicio: centro de control del día ----- */
+  greeting(){
+    const h = new Date().getHours();
+    return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+  },
+  dateLine(){
+    const now = new Date();
+    const s = `${DAYS_SHORT[now.getDay()]} ${now.getDate()} de ${MONTHS[now.getMonth()]}`;
+    return s[0].toUpperCase() + s.slice(1);
+  },
   home(){
+    const ui = Store.data.settings.ui || {};
+    let html = `<div class="topbar"><div class="grow"><div class="muted small">${this.dateLine()}</div><h1>${this.greeting()}${ui.name ? ', ' + esc(ui.name) : ''}</h1></div><button class="iconbtn" data-go="#/menu" aria-label="Ajustes">${UI.icon('settings')}</button></div>`;
+    const empty = !Store.data.accounts.length && !Store.data.transactions.length && !Store.data.people.length;
+    if (empty){
+      if (Sync.enabled() && !Sync.user && Sync.status!=='syncing'){
+        html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">☁️ ¿Ya tienes cuenta en la nube?</div><div class="small muted" style="margin:4px 0 10px">Inicia sesión con tu correo y contraseña y tus datos aparecerán aquí.</div><div class="btnrow" style="margin:0"><button class="btn sm" data-action="sync-login">Iniciar sesión</button><button class="btn sm secondary" data-action="paste-json">Pegar respaldo</button></div></div>`;
+      } else if (Sync.status==='syncing'){
+        html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">⏳ Descargando tus datos de la nube…</div></div>`;
+      }
+    }
+    const cards = App.homeCards().concat([{ order: 60, render: ()=>this.financeCard() }]).sort((a,b)=>(a.order || 50) - (b.order || 50));
+    for (const c of cards){ try { html += c.render() || ''; } catch(e){ console.error('tarjeta', c.module, e); } }
+    return html;
+  },
+  financeCard(){
+    const nw = Calc.netWorth(); const ms = Calc.monthSummary(thisMonthKey());
+    const up = Calc.upcomingPayments(14);
+    let html = `<div class="card"><div class="card-head"><h3>💰 Finanzas</h3><a class="link" href="#/finanzas">Ver todo</a></div>
+      <div class="grid2" style="margin-bottom:0"><button class="stat flat" data-go="#/finanzas"><div class="t">En cuentas</div><div class="v">${fmtMoney(nw.accountsUSD)}</div></button><button class="stat flat" data-go="#/balance"><div class="t">Patrimonio</div><div class="v ${nw.netUSD < 0 ? 'red' : ''}">${fmtMoney(nw.netUSD)}</div></button></div>
+      <div class="row between small" style="margin-top:10px"><span class="muted">Este mes</span><span><span class="green">+${fmtMoney(ms.income)}</span> · <span class="red">-${fmtMoney(ms.expense)}</span></span></div>`;
+    if (nw.receivables.usd || nw.payables.usd) html += `<div class="row between small" style="margin-top:4px"><span class="muted">Préstamos</span><span>te deben <span class="green">${fmtMoney(nw.receivables.usd)}</span> · debes <span class="red">${fmtMoney(nw.payables.usd)}</span></span></div>`;
+    if (Store.data.budgets.length){ const b = Calc.budgetSummary(thisMonthKey()); html += `<div class="row between small" style="margin-top:4px"><span class="muted">Presupuesto</span><span class="${b.left < 0 ? 'red' : ''}">${b.pct}% usado · ${b.left < 0 ? 'excedido ' + fmtMoney(-b.left) : 'quedan ' + fmtMoney(b.left)}</span></div>`; }
+    if (up.length) html += `<div class="small" style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px">${up.slice(0, 3).map(x=>{ const p = Store.person(x.loan.personId); const lent = x.loan.direction==='lent'; const overdue = x.due.date < todayISO(); return `<div class="row between" style="padding:3px 0"><span class="${overdue ? 'red' : ''}">${UI.icon('calendar', 'inline-ic')} ${lent ? 'Cobrar a' : 'Pagar a'} ${esc(p ? p.name : '?')} · ${fmtDate(x.due.date, 'day')}</span><span class="semibold ${lent ? 'green' : 'red'}">${fmtMoney(x.due.amount, x.loan.currency)}</span></div>`; }).join('')}</div>`;
+    return html + `</div>`;
+  },
+
+  /* ----- Finanzas (panel) ----- */
+  finanzas(){
     const S = App.state, vc = S.viewCur;
     const nw = Calc.netWorth();
     const ms = Calc.monthSummary(thisMonthKey());
     const rates = Store.data.settings.rates;
     const noRate = vc!=='USD' && !Calc.rate(vc);
     const total = Calc.fromUSD(nw.accountsUSD, vc);
-    const now = new Date();
-    const dateStr = `${DAYS_SHORT[now.getDay()]} ${now.getDate()} de ${MONTHS[now.getMonth()]}`;
-    let html = `<div class="topbar"><div class="grow"><div class="muted small">${dateStr[0].toUpperCase() + dateStr.slice(1)}</div><h1>Mis finanzas</h1></div><button class="iconbtn" data-go="#/tasas" aria-label="Tasas">${UI.icon('coins')}</button></div>`;
+    let html = `<div class="topbar"><div class="grow"><div class="muted small">${this.dateLine()}</div><h1>Finanzas</h1></div><button class="iconbtn" data-go="#/tasas" aria-label="Tasas">${UI.icon('coins')}</button></div>`;
+    html += `<div class="menu-grid" style="grid-template-columns:repeat(5,1fr)">${[['#/movimientos', 'list', 'Movim.'], ['#/personas', 'users', 'Personas'], ['#/balance', 'scale', 'Balance'], ['#/presupuesto', 'target', 'Presup.'], ['#/cuentas', 'wallet', 'Cuentas']].map(([h, i, l])=>`<button data-go="${h}"><div class="ic">${UI.icon(i)}</div>${l}</button>`).join('')}</div>`;
     html += `<div class="hero"><div class="label">Total en cuentas</div><div class="big">${noRate ? 'Sin tasa' : fmtMoney(total, vc)}</div>
       <div class="chips">${CURRENCY_ORDER.map(c=>`<button class="chip ${c===vc ? 'active' : ''}" data-action="viewcur" data-cur="${c}">${CURRENCIES[c].short}</button>`).join('')}</div>
       <div class="hero-tiles">
@@ -62,15 +98,6 @@ const Views = {
         <button class="hero-tile pos" data-go="#/personas"><div class="t">${UI.icon('down')} Te deben</div><div class="v">${fmtMoney(nw.receivables.usd)}</div></button>
         <button class="hero-tile neg" data-go="#/personas"><div class="t">${UI.icon('up')} Debes</div><div class="v">${fmtMoney(nw.payables.usd)}</div></button>
       </div></div>`;
-    if (!Store.data.accounts.length && !Store.data.transactions.length && !Store.data.people.length){
-      if (Sync.enabled() && !Sync.user && Sync.status!=='syncing'){
-        html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">☁️ ¿Ya tienes cuenta en la nube?</div><div class="small muted" style="margin:4px 0 10px">Inicia sesión con tu correo y contraseña y tus datos aparecerán aquí. Si es tu primera vez, crea la cuenta para no perder nada.</div><div class="btnrow" style="margin:0"><button class="btn sm" data-action="sync-login">Iniciar sesión</button><button class="btn sm secondary" data-action="paste-json">Pegar respaldo</button></div></div>`;
-      } else if (Sync.status==='syncing'){
-        html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">⏳ Descargando tus datos de la nube…</div></div>`;
-      } else if (!Sync.user){
-        html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">¿Ya tenías datos registrados?</div><div class="small muted" style="margin:4px 0 10px">Pega aquí un respaldo copiado desde otro dispositivo.</div><div class="btnrow" style="margin:0"><button class="btn sm" data-action="paste-json">Pegar respaldo</button><button class="btn sm secondary" data-action="new-account">Empezar de cero</button></div></div>`;
-      }
-    }
     const lu = Rates.lastUpdate();
     html += `<div class="card" style="padding:12px 14px"><div class="row between"><div class="chips grow">${['VES','COP','EUR'].map(c=>`<button class="chip" data-action="edit-rate" data-cur="${c}">${fmtRate(c, rates[c].value)}${rates[c].manual ? ' ✎' : ''}</button>`).join('')}</div><button class="iconbtn ghost ${Rates.busy ? 'spin' : ''}" data-action="refresh-rates" aria-label="Actualizar tasas">${UI.icon('refresh')}</button></div><div class="xs muted" style="margin-top:6px">Por 1 USD · Binance P2P (venta USDT) · actualizado ${timeAgo(lu)}</div></div>`;
     html += `<div class="grid2"><button class="stat" data-go="#/movimientos"><div class="t"><span class="dot g">${UI.icon('up')}</span>Ingresos del mes</div><div class="v">${fmtMoney(ms.income)}</div></button><button class="stat" data-go="#/movimientos"><div class="t"><span class="dot r">${UI.icon('down')}</span>Egresos del mes</div><div class="v">${fmtMoney(ms.expense)}</div></button></div>`;
@@ -281,6 +308,15 @@ const Views = {
     return `<svg class="chart" viewBox="0 0 ${W} ${H}"><line x1="${padL}" x2="${W - padR}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>${bars}</svg>`;
   },
 
+  appearanceCard(){
+    const ui = Store.data.settings.ui || {}; const theme = ui.theme || 'system'; const accent = ui.accent || 'teal';
+    return `<div class="card">
+      <div class="row between mb"><div><div class="semibold">Tu nombre</div><div class="small muted">${ui.name ? esc(ui.name) : 'Para el saludo del inicio'}</div></div><button class="btn secondary sm" data-action="set-name">${ui.name ? 'Cambiar' : 'Poner'}</button></div>
+      <div class="small muted" style="margin-bottom:6px">Tema</div>
+      <div class="seg mb">${[['light', 'Claro'], ['dark', 'Oscuro'], ['system', 'Sistema']].map(([k, l])=>`<button class="${theme===k ? 'active' : ''}" data-action="set-theme" data-theme="${k}">${l}</button>`).join('')}</div>
+      <div class="small muted" style="margin-bottom:6px">Color</div>
+      <div class="palette">${Object.entries(ACCENTS).map(([k, c])=>`<button type="button" class="${accent===k ? 'sel' : ''}" style="background:${c}" data-action="set-accent" data-accent="${k}" aria-label="${k}"></button>`).join('')}</div></div>`;
+  },
   syncCard(){
     if (!Sync.enabled()) return `<div class="card"><div class="row"><div class="ic acc-ic" style="background:var(--card-2)">☁️</div><div class="grow"><div class="semibold">Sincronización no configurada</div><div class="small muted">Los datos se guardan solo en este dispositivo.</div></div></div></div>`;
     if (Sync.status==='error') return `<div class="card"><div class="row"><div class="ic acc-ic" style="background:var(--red-soft)">⚠️</div><div class="grow"><div class="semibold red">Error de sincronización</div><div class="small muted">${esc(Sync.lastError)}</div><div class="small muted ellipsis">${esc(Sync.user ? Sync.user.email || '' : '')}</div></div></div><div class="btnrow"><button class="btn sm" data-action="sync-push">${UI.icon('upload')} Reintentar subida</button><button class="btn secondary sm" data-action="sync-pull">Reconectar</button>${Sync.user ? '<button class="btn secondary sm" data-action="sync-logout">Salir</button>' : ''}</div></div>`;
@@ -297,6 +333,8 @@ const Views = {
     const item = (go, icon, label)=>`<button data-go="${go}"><div class="ic">${UI.icon(icon)}</div>${label}</button>`;
     return `<div class="topbar"><h1>Menú</h1></div>
       <h2>Gestión</h2><div class="menu-grid">${item('#/cuentas', 'wallet', 'Cuentas')}${item('#/presupuesto', 'target', 'Presupuesto')}${item('#/categorias', 'tag', 'Categorías')}${item('#/personas', 'users', 'Personas')}${item('#/tasas', 'coins', 'Tasas')}${item('#/balance', 'scale', 'Balance')}</div>
+      ${App.modules.some(m=>m.menu && m.menu.length) ? `<h2>Mi vida</h2><div class="menu-grid">${App.modules.flatMap(m=>m.menu || []).map(x=>item(x.hash, x.icon || 'grid', x.label)).join('')}</div>` : ''}
+      <h2>Apariencia</h2>${this.appearanceCard()}
       <h2>Nube</h2>${this.syncCard()}
       <h2>Datos</h2><div class="card tight"><div class="list">
         <button class="item clickable" data-action="copy-json"><div class="ic">${UI.icon('file')}</div><div class="body"><div class="title">Copiar respaldo</div><div class="sub">Copia todos tus datos al portapapeles para pegarlos en otro dispositivo o app</div></div></button>
