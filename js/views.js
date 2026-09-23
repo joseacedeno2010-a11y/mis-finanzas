@@ -63,7 +63,13 @@ const Views = {
         <button class="hero-tile neg" data-go="#/personas"><div class="t">${UI.icon('up')} Debes</div><div class="v">${fmtMoney(nw.payables.usd)}</div></button>
       </div></div>`;
     if (!Store.data.accounts.length && !Store.data.transactions.length && !Store.data.people.length){
-      html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">¿Ya tenías datos registrados?</div><div class="small muted" style="margin:4px 0 10px">En el iPhone, Safari y la app instalada guardan datos por separado. Abre la app en Safari, ve a Menú → <b>Copiar respaldo</b>, y luego pégalo aquí.</div><div class="btnrow" style="margin:0"><button class="btn sm" data-action="paste-json">Pegar respaldo</button><button class="btn sm secondary" data-action="new-account">Empezar de cero</button></div></div>`;
+      if (Sync.enabled() && !Sync.user && Sync.status!=='syncing'){
+        html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">☁️ ¿Ya tienes cuenta en la nube?</div><div class="small muted" style="margin:4px 0 10px">Inicia sesión con tu correo y contraseña y tus datos aparecerán aquí. Si es tu primera vez, crea la cuenta para no perder nada.</div><div class="btnrow" style="margin:0"><button class="btn sm" data-action="sync-login">Iniciar sesión</button><button class="btn sm secondary" data-action="paste-json">Pegar respaldo</button></div></div>`;
+      } else if (Sync.status==='syncing'){
+        html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">⏳ Descargando tus datos de la nube…</div></div>`;
+      } else if (!Sync.user){
+        html += `<div class="card" style="border:1px solid var(--accent)"><div class="semibold">¿Ya tenías datos registrados?</div><div class="small muted" style="margin:4px 0 10px">Pega aquí un respaldo copiado desde otro dispositivo.</div><div class="btnrow" style="margin:0"><button class="btn sm" data-action="paste-json">Pegar respaldo</button><button class="btn sm secondary" data-action="new-account">Empezar de cero</button></div></div>`;
+      }
     }
     const lu = Rates.lastUpdate();
     html += `<div class="card" style="padding:12px 14px"><div class="row between"><div class="chips grow">${['VES','COP','EUR'].map(c=>`<button class="chip" data-action="edit-rate" data-cur="${c}">${fmtRate(c, rates[c].value)}${rates[c].manual ? ' ✎' : ''}</button>`).join('')}</div><button class="iconbtn ghost ${Rates.busy ? 'spin' : ''}" data-action="refresh-rates" aria-label="Actualizar tasas">${UI.icon('refresh')}</button></div><div class="xs muted" style="margin-top:6px">Por 1 USD · Binance P2P (venta USDT) · actualizado ${timeAgo(lu)}</div></div>`;
