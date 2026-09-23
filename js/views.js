@@ -69,6 +69,10 @@ const Views = {
       html += `<div class="card tight"><div class="row between" style="padding:6px 16px 4px"><div class="semibold">${CURRENCIES[c].name}</div><div class="right"><div class="bold">${fmtMoney(g.total, c)}</div>${c!=='USD' ? `<div class="xs muted">≈ ${fmtMoney(g.usd)}</div>` : ''}</div></div><div class="list">${g.accounts.map(x=>`<button class="item clickable" data-go="#/cuentas/${x.acc.id}"><div class="body"><div class="title">${esc(x.acc.name)}</div><div class="sub">${ACCOUNT_TYPES[x.acc.type] || ''}</div></div><div class="amt">${fmtMoney(x.balance, c)}</div><span class="chev">${UI.icon('chevron')}</span></button>`).join('')}</div></div>`;
     }
     html += `<div class="section-title"><h2>Préstamos</h2><a class="link" href="#/personas">Ver personas</a></div><div class="grid2"><button class="stat" data-go="#/personas"><div class="t">Te deben</div><div class="v green">${fmtMoney(nw.receivables.usd)}</div><div class="xs muted">${Object.keys(nw.receivables.byPerson).length} persona(s)</div></button><button class="stat" data-go="#/personas"><div class="t">Debes</div><div class="v red">${fmtMoney(nw.payables.usd)}</div><div class="xs muted">${Object.keys(nw.payables.byPerson).length} persona(s)</div></button></div>`;
+    const up = Calc.upcomingPayments(45);
+    if (up.length){
+      html += `<div class="card tight"><div class="card-head" style="padding:6px 16px 0"><h3>Próximos pagos</h3><span class="muted small">45 días</span></div><div class="list">${up.map(x=>{ const l = x.loan, p = Store.person(l.personId); const lent = l.direction==='lent'; const overdue = x.due.date < todayISO(); return `<button class="item clickable" data-go="#/personas/${l.personId}"><div class="ic ${lent ? 'g' : 'r'}">${UI.icon('calendar')}</div><div class="body"><div class="title ellipsis">${lent ? 'Cobrar a' : 'Pagar a'} ${esc(p ? p.name : '?')}</div><div class="sub ellipsis ${overdue ? 'red' : ''}">${fmtDate(x.due.date, 'day')}${overdue ? ' · vencido' : ''}${x.due.n > 1 ? ` · cuota ${x.due.k + 1}/${x.due.n}` : ''}${l.note ? ' · ' + esc(l.note) : ''}</div></div><div class="amt ${lent ? 'green' : 'red'}">${fmtMoney(x.due.amount, l.currency)}</div></button>`; }).join('')}</div></div>`;
+    }
     if (ms.cats.length){
       html += `<div class="card"><div class="card-head"><h3>Top categorías</h3><span class="muted small">${fmtMonth(thisMonthKey())}</span></div><div class="list">${ms.cats.slice(0, 5).map(x=>{ const pct = ms.expense ? Math.round(x.usd / ms.expense * 100) : 0; return `<div class="item" style="padding:8px 0"><div class="ic">${x.cat ? x.cat.icon : '🧾'}</div><div class="body"><div class="row between"><span class="title">${esc(x.cat ? x.cat.name : 'Sin categoría')}</span><span class="semibold">${fmtMoney(x.usd)}</span></div><div class="progress" style="margin-top:6px"><div style="width:${pct}%"></div></div></div><span class="badge">${pct}%</span></div>`; }).join('')}</div></div>`;
     }
@@ -145,12 +149,17 @@ const Views = {
     return html;
   },
   loanCard(l){
-    const out = Calc.loanOutstanding(l), paid = Calc.loanPaid(l);
-    const pct = l.amount ? Math.min(100, Math.round(paid / l.amount * 100)) : 0;
+    const out = Calc.loanOutstanding(l), paid = Calc.loanPaid(l), interest = Calc.loanInterest(l), total = Calc.loanTotal(l);
+    const pct = total ? Math.min(100, Math.round(paid / total * 100)) : 0;
     const lent = l.direction==='lent'; const acc = l.accountId && Store.account(l.accountId);
-    const overdue = l.dueDate && out > 0 && l.dueDate < todayISO();
+    const nd = Calc.loanNextDue(l); const overdue = nd && nd.date < todayISO();
+    const f = l.frequency || 'once';
     const pays = [...l.payments].sort((a,b)=>b.date.localeCompare(a.date));
-    return `<div class="card flat"><div class="row between"><div class="grow"><div class="semibold">${lent ? 'Le prestaste' : 'Te prestó'} ${fmtMoney(l.amount, l.currency)}</div><div class="small muted">${fmtDate(l.date)}${l.note ? ' · ' + esc(l.note) : ''} · ${acc ? esc(acc.name) : 'sin cuenta'}</div>${l.dueDate ? `<div class="xs ${overdue ? 'red' : 'muted'}">Vence ${fmtDate(l.dueDate)}${overdue ? ' · vencido' : ''}</div>` : ''}</div><div class="right"><div class="bold ${lent ? 'green' : 'red'}" style="font-size:17px">${fmtMoney(out, l.currency)}</div><div class="xs muted">pendiente${paid ? ` · abonado ${fmtMoney(paid, l.currency)}` : ''}</div></div></div>
+    let plan = '';
+    if (interest) plan += `<div class="xs muted">Interés ${l.interestRate}% ${Calc.PERIOD[l.interestPeriod] || ''} · ${fmtMoney(interest, l.currency)} · total ${fmtMoney(total, l.currency)}</div>`;
+    if (nd) plan += `<div class="xs ${overdue ? 'red' : 'amber'}">${f==='once' ? 'Vence' : 'Próximo pago'} ${fmtDate(nd.date)}${nd.n > 1 ? ` · cuota ${nd.k + 1} de ${nd.n}` : ''} · ${fmtMoney(nd.amount, l.currency)}${overdue ? ' · vencido' : ''}</div>`;
+    else if (f!=='once') plan += `<div class="xs muted">Pago ${Calc.FREQ[f].label.toLowerCase()}${l.installments ? ` · ${l.installments} cuotas` : ''}</div>`;
+    return `<div class="card flat"><div class="row between"><div class="grow"><div class="semibold">${lent ? 'Le prestaste' : 'Te prestó'} ${fmtMoney(l.amount, l.currency)}</div><div class="small muted">${fmtDate(l.date)}${l.note ? ' · ' + esc(l.note) : ''} · ${acc ? esc(acc.name) : 'sin cuenta'}</div>${plan}</div><div class="right"><div class="bold ${lent ? 'green' : 'red'}" style="font-size:17px">${fmtMoney(out, l.currency)}</div><div class="xs muted">pendiente${paid ? ` · abonado ${fmtMoney(paid, l.currency)}` : ''}</div></div></div>
       <div class="progress"><div style="width:${pct}%"></div></div>
       ${pays.length ? `<div class="mt">${pays.map(pm=>{ const pa = pm.accountId && Store.account(pm.accountId); return `<button class="payrow" data-action="edit-payment" data-loan="${l.id}" data-pid="${pm.id}"><span class="muted">${fmtDate(pm.date)}${pm.note ? ' · ' + esc(pm.note) : ''}${pa ? ' · ' + esc(pa.name) : ''}</span><span class="semibold">${lent ? '+' : '-'}${fmtMoney(pm.amount, l.currency)}</span></button>`; }).join('')}</div>` : ''}
       <div class="btnrow"><button class="btn sm" data-action="pay" data-id="${l.id}">${lent ? 'Registrar abono' : 'Registrar pago'}</button><button class="btn secondary sm" data-action="edit-loan" data-id="${l.id}">Editar</button></div></div>`;

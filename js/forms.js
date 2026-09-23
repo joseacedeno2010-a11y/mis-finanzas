@@ -133,8 +133,11 @@ const Forms = {
       <div class="field"><label>Moneda del préstamo</label><select name="currency">${this.currencyOptions(cur0)}</select></div>
       <div class="field"><label data-acclbl>${lbls(direction).acc}</label><select name="account">${this.accountOptions(loan ? loan.accountId : '', { allowNone:true })}</select><div class="hint">Con "Sin cuenta" el préstamo se registra pero no cambia tus saldos. Útil para deudas anteriores a la app.</div></div>
       ${this.crossHTML('Monto que se movió en la cuenta, en', loan && loan.accountAmount!=null ? loan.accountAmount : null)}
-      <div class="two"><div class="field"><label>Fecha</label><input type="date" name="date" value="${loan ? loan.date : todayISO()}"></div><div class="field"><label>Fecha límite</label><input type="date" name="dueDate" value="${loan && loan.dueDate ? loan.dueDate : ''}"></div></div>
-      <div class="field"><label>Para qué fue</label><input name="note" placeholder="Opcional" value="${esc(loan ? loan.note : '')}"></div>
+      <div class="two"><div class="field"><label>Fecha del préstamo</label><input type="date" name="date" value="${loan ? loan.date : todayISO()}"></div><div class="field"><label>Para qué fue</label><input name="note" placeholder="Opcional" value="${esc(loan ? loan.note : '')}"></div></div>
+      <div class="field"><label>Interés (opcional)</label><div class="two"><input name="interestRate" inputmode="decimal" placeholder="0 %" value="${loan && loan.interestRate ? loan.interestRate : ''}"><select name="interestPeriod">${Object.entries(Calc.PERIOD).map(([k,v])=>`<option value="${k}"${(loan ? loan.interestPeriod : 'monthly')===k ? ' selected' : ''}>% ${v}</option>`).join('')}</select></div><div class="hint">"Único" es un porcentaje fijo sobre el capital. Mensual y anual acumulan según el plazo o el tiempo transcurrido.</div></div>
+      <div class="field"><label>Forma de pago</label><div class="two"><select name="frequency">${Object.entries(Calc.FREQ).map(([k,v])=>`<option value="${k}"${(loan ? loan.frequency || 'once' : 'once')===k ? ' selected' : ''}>${v.label}</option>`).join('')}</select><input name="installments" inputmode="numeric" placeholder="N° de cuotas" value="${loan && loan.installments ? loan.installments : ''}"></div></div>
+      <div class="field"><label data-duelbl>Fecha límite de pago</label><input type="date" name="dueDate" value="${loan && loan.dueDate ? loan.dueDate : ''}"></div>
+      <div class="card flat small" data-preview style="padding:10px 14px"></div>
       <button class="btn" data-save>${editing ? 'Guardar cambios' : 'Registrar préstamo'}</button>
       ${editing ? '<button class="btn danger mt" data-del>Eliminar préstamo y sus abonos</button>' : ''}` });
     const f = s.body;
@@ -145,6 +148,28 @@ const Forms = {
     personSel.onchange = ()=>{
       if (personSel.value==='__new'){ personSel.value = ''; this.person(null, p=>{ personSel.innerHTML = this.personOptions(p.id); }); }
     };
+    /* vista previa del plan: total con interés, cuota y próximo pago */
+    const readPlan = ()=>({
+      amount: this.amount(f) || 0, currency: curSel.value, date: this.val(f, 'date') || todayISO(), dueDate: this.val(f, 'dueDate') || null,
+      interestRate: parseAmount(this.val(f, 'interestRate')) || 0, interestPeriod: this.val(f, 'interestPeriod'),
+      frequency: this.val(f, 'frequency') || 'once', installments: parseInt(this.val(f, 'installments'), 10) || 0, payments: loan ? loan.payments : [],
+    });
+    const preview = ()=>{
+      const p = readPlan(); const box = f.querySelector('[data-preview]');
+      f.querySelector('[data-duelbl]').textContent = p.frequency==='once' ? 'Fecha límite de pago' : 'Fecha del primer pago';
+      f.querySelector('[name=installments]').disabled = p.frequency==='once';
+      if (!p.amount){ box.classList.add('hide'); return; }
+      box.classList.remove('hide');
+      const interest = Calc.loanInterest(p), total = Calc.loanTotal(p), cuota = Calc.loanInstallment(p);
+      let t = `<b>Total a ${direction==='lent' ? 'cobrar' : 'pagar'}: ${fmtMoney(total, p.currency)}</b>`;
+      if (interest) t += ` <span class="muted">(capital ${fmtMoney(p.amount, p.currency)} + interés ${fmtMoney(interest, p.currency)})</span>`;
+      if (cuota) t += `<br>${p.installments} cuotas ${Calc.FREQ[p.frequency].label.toLowerCase()}es de <b>${fmtMoney(cuota, p.currency)}</b>`;
+      if (p.dueDate){ const nd = Calc.loanNextDue(Object.assign({ id:'tmp' }, p)); if (nd) t += `<br>${p.frequency==='once' ? 'Vence' : 'Primer pago'} el ${fmtDate(nd.date)}`; }
+      else if (p.frequency!=='once') t += `<br><span class="amber">Indica la fecha del primer pago para ver el calendario.</span>`;
+      box.innerHTML = t;
+    };
+    ['interestRate', 'interestPeriod', 'frequency', 'installments', 'dueDate', 'date', 'amount', 'currency'].forEach(n=>{ const el = f.querySelector(`[name=${n}]`); el.addEventListener('input', preview); el.addEventListener('change', preview); });
+    preview();
     const seg = f.querySelector('[data-seg]');
     if (seg) seg.onclick = e=>{
       const b = e.target.closest('[data-k]'); if (!b) return;
@@ -153,6 +178,7 @@ const Forms = {
       b.className = 'active ' + (direction==='lent' ? 'r' : 'g');
       f.querySelector('[data-personlbl]').textContent = lbls(direction).person;
       f.querySelector('[data-acclbl]').textContent = lbls(direction).acc;
+      preview();
     };
     f.querySelector('[data-save]').onclick = ()=>{
       const pid = personSel.value; if (!pid || pid==='__new') return UI.toast('Selecciona una persona', true);
@@ -162,8 +188,12 @@ const Forms = {
       let accountAmount = null;
       if (acc){ accountAmount = acc.currency===currency ? amount : this.amount(f, 'crossAmount'); if (!accountAmount) return UI.toast(`Indica el monto en ${CURRENCIES[acc.currency].name}`, true); }
       const date = this.val(f, 'date') || todayISO();
+      const plan = readPlan();
+      if (plan.frequency!=='once' && !plan.dueDate) return UI.toast('Indica la fecha del primer pago', true);
+      if (plan.dueDate && plan.dueDate < date) return UI.toast('La fecha de pago no puede ser anterior al préstamo', true);
       Store.saveLoan({ id: loan ? loan.id : undefined, createdAt: loan ? loan.createdAt : undefined, payments: loan ? loan.payments : [], txId: loan ? loan.txId : null,
-        personId: pid, direction, amount, currency, date, dueDate: this.val(f, 'dueDate') || null, note: this.val(f, 'note'), accountId: acc ? acc.id : null, accountAmount });
+        personId: pid, direction, amount, currency, date, dueDate: plan.dueDate, note: this.val(f, 'note'), accountId: acc ? acc.id : null, accountAmount,
+        interestRate: plan.interestRate, interestPeriod: plan.interestPeriod, frequency: plan.frequency, installments: plan.frequency==='once' ? 0 : plan.installments });
       s.close();
       if (location.hash==='#/personas/'+pid) App.render(); else App.go('#/personas/'+pid);
       UI.toast(editing ? 'Préstamo actualizado' : 'Préstamo registrado');
@@ -179,7 +209,7 @@ const Forms = {
     const lent = loan.direction==='lent';
     const pending = round2(Calc.loanOutstanding(loan) + (payment ? payment.amount : 0));
     const s = UI.sheet({ title: payment ? 'Editar abono' : (lent ? 'Registrar abono recibido' : 'Registrar pago que hice'), html: `
-      <div class="card flat" style="padding:10px 14px;margin-bottom:12px"><div class="semibold">${esc(person ? person.name : '')} · ${lent ? 'te debe' : 'le debes'} ${fmtMoney(Calc.loanOutstanding(loan), loan.currency)}</div><div class="small muted">Préstamo del ${fmtDate(loan.date)} por ${fmtMoney(loan.amount, loan.currency)}${loan.note ? ' · ' + esc(loan.note) : ''}</div></div>
+      <div class="card flat" style="padding:10px 14px;margin-bottom:12px"><div class="semibold">${esc(person ? person.name : '')} · ${lent ? 'te debe' : 'le debes'} ${fmtMoney(Calc.loanOutstanding(loan), loan.currency)}</div><div class="small muted">Préstamo del ${fmtDate(loan.date)} por ${fmtMoney(loan.amount, loan.currency)}${Calc.loanInterest(loan) ? ` + interés ${fmtMoney(Calc.loanInterest(loan), loan.currency)}` : ''}${loan.note ? ' · ' + esc(loan.note) : ''}</div></div>
       ${this.amountHTML(payment ? payment.amount : null, CURRENCIES[loan.currency].name)}
       <div class="center mb"><button class="btn secondary sm" data-all>Saldar todo (${fmtMoney(pending, loan.currency)})</button></div>
       <div class="field"><label>${lent ? 'Cuenta donde entra el dinero' : 'Cuenta de donde sale el dinero'}</label><select name="account">${this.accountOptions(payment ? payment.accountId : '', { allowNone:true })}</select></div>

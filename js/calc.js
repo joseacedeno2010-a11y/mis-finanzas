@@ -44,8 +44,65 @@ const Calc = {
     return Store.data.transactions.filter(t=>t.accountId===accountId || t.toAccountId===accountId).sort(this.sortDesc);
   },
 
+  /* ----- intereses y plan de pago ----- */
+  FREQ: {
+    once:     { label:'Un solo pago', months:null, days:null },
+    weekly:   { label:'Semanal',      months:7/30.4375,  days:7 },
+    biweekly: { label:'Quincenal',    months:15/30.4375, days:15 },
+    monthly:  { label:'Mensual',      months:1,          days:null },
+  },
+  PERIOD: { monthly:'mensual', yearly:'anual', total:'único' },
+  daysBetween(a, b){ return Math.round((parseISO(b) - parseISO(a)) / 86400000); },
+  monthsElapsed(a, b){
+    const d1 = parseISO(a), d2 = parseISO(b);
+    let m = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+    if (d2.getDate() < d1.getDate()) m--;
+    return Math.max(0, m);
+  },
+  addFreq(dateISO, f, k){
+    const d = parseISO(dateISO);
+    if (f==='monthly') d.setMonth(d.getMonth() + k); else d.setDate(d.getDate() + k * (this.FREQ[f].days || 0));
+    return toISO(d);
+  },
+  /* plazo en meses si el préstamo tiene un plan definido; null si es abierto */
+  loanTermMonths(loan){
+    const f = loan.frequency || 'once';
+    if (f==='once') return loan.dueDate ? Math.max(1, this.daysBetween(loan.date, loan.dueDate) / 30.4375) : null;
+    const n = Number(loan.installments) || 0;
+    return n > 0 ? n * this.FREQ[f].months : null;
+  },
+  loanInterest(loan, asOf){
+    const r = Number(loan.interestRate) || 0; if (!r) return 0;
+    const P = loan.amount;
+    if (loan.interestPeriod==='total') return round2(P * r / 100);
+    const monthly = loan.interestPeriod==='yearly' ? r / 12 : r;
+    const elapsed = this.monthsElapsed(loan.date, asOf || todayISO());
+    const term = this.loanTermMonths(loan);
+    const periods = term==null ? elapsed : Math.max(term, elapsed);
+    return round2(P * monthly / 100 * periods);
+  },
+  loanTotal(loan, asOf){ return round2(loan.amount + this.loanInterest(loan, asOf)); },
+  loanInstallment(loan){
+    const n = Number(loan.installments) || 0; const f = loan.frequency || 'once';
+    if (f==='once' || !n) return null;
+    return round2(this.loanTotal(loan) / n);
+  },
+  loanNextDue(loan){
+    if (!loan.dueDate || !this.loanIsOpen(loan)) return null;
+    const f = loan.frequency || 'once';
+    if (f==='once') return { date: loan.dueDate, amount: this.loanOutstanding(loan), k:0, n:1 };
+    const n = Number(loan.installments) || 0; const cuota = this.loanInstallment(loan);
+    let k = cuota ? Math.floor(this.loanPaid(loan) / cuota + 1e-6) : (loan.payments || []).length;
+    if (n > 0) k = Math.min(k, n - 1);
+    const out = this.loanOutstanding(loan);
+    return { date: this.addFreq(loan.dueDate, f, k), amount: cuota ? Math.min(cuota, out) : out, k, n };
+  },
+  upcomingPayments(days=45){
+    const lim = new Date(); lim.setDate(lim.getDate() + days); const limISO = toISO(lim);
+    return Store.data.loans.map(l=>({ loan:l, due:this.loanNextDue(l) })).filter(x=>x.due && x.due.date <= limISO).sort((a,b)=>a.due.date.localeCompare(b.due.date));
+  },
   loanPaid(loan, asOf){ return round2((loan.payments||[]).filter(p=>!asOf || p.date <= asOf).reduce((s,p)=>s + p.amount, 0)); },
-  loanOutstanding(loan, asOf){ if (asOf && loan.date > asOf) return 0; return round2(Math.max(0, loan.amount - this.loanPaid(loan, asOf))); },
+  loanOutstanding(loan, asOf){ if (asOf && loan.date > asOf) return 0; return round2(Math.max(0, this.loanTotal(loan, asOf) - this.loanPaid(loan, asOf))); },
   loanIsOpen(loan){ return this.loanOutstanding(loan) > 0.004; },
   personLoans(personId){ return Store.data.loans.filter(l=>l.personId===personId).sort((a,b)=>b.date.localeCompare(a.date)); },
   personBalances(personId, asOf){
