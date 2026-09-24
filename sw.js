@@ -1,6 +1,6 @@
 /* Service worker: la app funciona sin conexión; las tasas siempre van a la red */
-const CACHE = 'finanzas-v2.1.0';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './css/app.css', './js/config.js', './js/sync.js', './js/notify.js', './js/format.js', './js/store.js', './js/rates.js', './js/calc.js', './js/ui.js', './js/forms.js', './js/views.js', './js/app.js', './js/modules/dia.js', './js/modules/habitos.js', './js/modules/semana.js', './js/modules/metas.js', './js/modules/rueda.js', './js/modules/notas.js', './js/modules/logros.js', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'finanzas-v2.1.1';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './css/app.css', './js/config.js', './js/sync.js', './js/notify.js', './js/format.js', './js/store.js', './js/rates.js', './js/calc.js', './js/ui.js', './js/forms.js', './js/views.js', './js/app.js', './js/modules/dia.js', './js/modules/habitos.js', './js/modules/semana.js', './js/modules/metas.js', './js/modules/rueda.js', './js/modules/notas.js', './js/modules/logros.js', './js/modules/plan.js', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
