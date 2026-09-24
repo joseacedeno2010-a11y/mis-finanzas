@@ -1,6 +1,6 @@
 'use strict';
 /* Enrutador, eventos y arranque */
-const APP_VERSION = '2.1.1';
+const APP_VERSION = '2.2.0';
 const ACCENTS = { teal:'#0f766e', blue:'#2563eb', violet:'#7c3aed', pink:'#db2777', orange:'#ea580c', amber:'#d97706', green:'#16a34a', cyan:'#0891b2', slate:'#334155' };
 const App = {
   state: { viewCur:'USD', month: thisMonthKey(), q:'', fAcc:'', pq:'', catKind:'expense', accCur:'all', accSort:'fav' },

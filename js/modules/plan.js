@@ -8,11 +8,13 @@ const Plan = {
 
   blocks(){
     const { year, q } = this.quarter();
-    const debts = Store.data.loans.filter(l=>l.direction==='borrowed' && Calc.loanIsOpen(l));
-    const debtTotal = debts.reduce((s, l)=>s + Calc.toUSD(Calc.loanOutstanding(l), l.currency), 0);
+    const loanDebts = Store.data.loans.filter(l=>l.direction==='borrowed' && Calc.loanIsOpen(l)).map(l=>({ name: (Store.person(l.personId) || {}).name || 'persona', amount: Calc.loanOutstanding(l), currency: l.currency }));
+    const oldDebts = (typeof Deudas!=='undefined' ? Deudas.list().filter(d=>Deudas.isOpen(d)) : []).map(d=>({ name: d.creditor, amount: Deudas.outstanding(d), currency: d.currency || 'USD' }));
+    const debts = oldDebts.concat(loanDebts).sort((a, b)=>Calc.toUSD(a.amount, a.currency) - Calc.toUSD(b.amount, b.currency));
+    const debtTotal = debts.reduce((s, d)=>s + Calc.toUSD(d.amount, d.currency), 0);
     const debtMilestones = debts.length
-      ? debts.map(l=>{ const p = Store.person(l.personId); return { id: uid(), text: `Pagar a ${p ? p.name : 'persona'} · ${fmtMoney(Calc.loanOutstanding(l), l.currency)}`, done: false }; })
-      : [{ id: uid(), text: 'Anotar todas mis deudas en Personas', done: false }, { id: uid(), text: 'Pagar la deuda más pequeña primero', done: false }];
+      ? debts.map(d=>({ id: uid(), text: `Pagar a ${d.name} · ${fmtMoney(d.amount, d.currency)}`, done: false }))
+      : [{ id: uid(), text: 'Anotar todas mis deudas en la sección Deudas', done: false }, { id: uid(), text: 'Pagar la deuda más pequeña primero', done: false }];
     return [
       { key:'ritual', title:'🌅 Ritual de la mañana', desc:'Agua, 10 min de oración o meditación, 20 min de ejercicio, 10 min de lectura y las 3 prioridades del día.',
         run(){ Store.upsert('rituals', { id: uid(), name:'Ritual de la mañana', icon:'🌅', time:'06:30', order: 0, steps: [['Vaso de agua 💧'], ['Oración o meditación · 10 min 🙏'], ['Ejercicio · 20 min 🏋️'], ['Lectura · 10 min 📚'], ['Escribir las 3 prioridades de hoy ✍️']].map(s=>({ id: uid(), text: s[0] })) }); } },
