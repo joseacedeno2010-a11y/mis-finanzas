@@ -2,6 +2,8 @@
    Proyecto "mis-finanzas" en console.firebase.google.com (cuenta figuera649@gmail.com).
    Estas claves son públicas por diseño: el acceso a los datos lo controlan las reglas de Firestore
    (cada usuario solo puede leer y escribir en users/{su uid}). */
+/* Clave pública para las notificaciones (Web Push / VAPID). La privada vive en los secretos de GitHub. */
+window.VAPID_PUBLIC_KEY = 'BClT4uB6gt1EO04MTCvy_UsHGHrgMcrWDidCZFVPsL15ORqCd94pa2G08-67uh5qBe2tEIvF6ny9mfGTV-rAnwk';
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyC8PO_Xy52L1e3lRbSt54n2VNcuAQfI_LE",
   authDomain: "mis-finanzas-7bfe6.firebaseapp.com",

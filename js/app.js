@@ -1,6 +1,6 @@
 'use strict';
 /* Enrutador, eventos y arranque */
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const ACCENTS = { teal:'#0f766e', blue:'#2563eb', violet:'#7c3aed', pink:'#db2777', orange:'#ea580c', amber:'#d97706', green:'#16a34a', cyan:'#0891b2', slate:'#334155' };
 const App = {
   state: { viewCur:'USD', month: thisMonthKey(), q:'', fAcc:'', pq:'', catKind:'expense', accCur:'all', accSort:'fav' },
@@ -62,6 +62,7 @@ const App = {
     if (this._lastHash===hash) window.scrollTo(0, y); else window.scrollTo(0, 0);
     this._lastHash = hash;
     this.modules.forEach(m=>{ if (m.afterRender) try { m.afterRender(hash); } catch(e){ console.error(e); } });
+    if (typeof Notify!=='undefined') Notify.badge();
   },
 
   init(){
@@ -78,6 +79,7 @@ const App = {
     });
     document.addEventListener('change', e=>{
       if (e.target.matches('[data-filter-acc]')){ this.state.fAcc = e.target.value; const l = document.getElementById('list'); if (l) l.innerHTML = Views.movementsList(); }
+      if (e.target.matches('[data-notify-time]')){ const v = e.target.value; if (/^\d{2}:\d{2}$/.test(v)){ Notify.save({ [e.target.dataset.notifyTime]: v }); UI.toast('Hora guardada'); } }
     });
     document.addEventListener('keydown', e=>{ if (e.key==='Escape'){ const ov = document.querySelector('#modal-root .overlay:last-child'); if (ov){ ov.remove(); if (!document.querySelector('#modal-root .overlay')) document.body.style.overflow=''; } } });
     this.render();
@@ -212,6 +214,16 @@ const App = {
     'new-budget'(d){ Forms.budget({ catId: d.cat || null }); },
     'edit-budget'(d){ Forms.budget({ id: d.id }); },
     'sync-login'(){ Forms.syncLogin(); },
+    async 'notify-enable'(){
+      try { await Notify.enable(); this.render(); UI.toast('Avisos activados en este dispositivo ✅'); }
+      catch(e){ UI.toast(e.message, true); }
+    },
+    async 'notify-disable'(){
+      if (!(await UI.confirm('¿Desactivar los avisos en este dispositivo?', { ok:'Desactivar' }))) return;
+      await Notify.disable(); this.render(); UI.toast('Avisos desactivados');
+    },
+    async 'notify-test'(){ try { await Notify.test(); } catch(e){ UI.toast('No se pudo mostrar la prueba: ' + e.message, true); } },
+    'notify-toggle'(d){ const c = Notify.cfg(); Notify.save({ [d.key]: !c[d.key] }); this.render(); },
     async 'check-update'(){
       if (!navigator.onLine) return UI.toast('Sin conexión a internet', true);
       UI.toast('Buscando actualización…');

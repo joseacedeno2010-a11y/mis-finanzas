@@ -308,6 +308,20 @@ const Views = {
     return `<svg class="chart" viewBox="0 0 ${W} ${H}"><line x1="${padL}" x2="${W - padR}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>${bars}</svg>`;
   },
 
+  notifyCard(){
+    const c = Notify.cfg(); const perm = Notify.permission();
+    const on = c.enabled && perm==='granted';
+    const sw = (key, label, sub)=>`<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><div><div class="semibold small">${label}</div>${sub ? `<div class="xs muted">${sub}</div>` : ''}</div><button class="switch ${c[key] ? 'on' : ''}" data-action="notify-toggle" data-key="${key}" aria-label="${label}"></button></div>`;
+    const time = (key, label)=>`<div class="row between" style="padding:6px 0"><span class="small">${label}</span><input type="time" data-notify-time="${key}" value="${esc(c[key])}" style="width:auto;padding:6px 10px;background:var(--card-2);border:1px solid var(--line);border-radius:10px"></div>`;
+    let head;
+    if (on) head = `<div class="row"><div class="ic acc-ic" style="background:var(--green-soft)">🔔</div><div class="grow"><div class="semibold">Avisos activados</div><div class="small muted">Te avisamos según estas horas (zona ${esc(c.tz)}).</div></div><button class="btn secondary sm" data-action="notify-disable">Apagar</button></div>`;
+    else if (perm==='denied') head = `<div class="row"><div class="ic acc-ic" style="background:var(--red-soft)">🔕</div><div class="grow"><div class="semibold">Permiso bloqueado</div><div class="small muted">Actívalo en los ajustes del sistema para esta app y vuelve aquí.</div></div></div>`;
+    else head = `<div class="row"><div class="ic acc-ic" style="background:var(--card-2)">🔔</div><div class="grow"><div class="semibold">Recibe recordatorios</div><div class="small muted">${Notify.isIOS() && !Notify.standalone() ? 'En iPhone, primero instala la app en la pantalla de inicio y actívalos desde ahí.' : 'Ritual, tareas, hábitos, reflexión, pagos y presupuesto, a las horas que elijas.'}</div></div></div><button class="btn mt" data-action="notify-enable">Activar avisos</button>`;
+    return `<div class="card">${head}
+      <div class="mt">${time('morning', '☀️ Resumen de la mañana')}${time('habitsAt', '✅ Recordatorio de hábitos')}${time('tasksAt', '📋 Tareas pendientes')}${time('evening', '🌙 Reflexión de la noche')}</div>
+      <div class="mt">${sw('tasks', 'Tareas', 'Pendientes del día y tareas con hora')}${sw('habits', 'Hábitos', 'Los que faltan por marcar')}${sw('streaks', 'Rachas en riesgo', 'Aviso extra si vas a romper la racha')}${sw('finance', 'Finanzas', 'Pagos y cobros que vencen, presupuesto al 80 % y 100 %')}${sw('focus', 'Enfoque', 'Fin de la sesión aunque la app esté cerrada')}</div>
+      <div class="row between mt"><span class="xs muted">El robot revisa cada 15 minutos; puede llegar con unos minutos de diferencia.</span>${on ? `<button class="btn secondary sm" data-action="notify-test">Probar</button>` : ''}</div></div>`;
+  },
   appearanceCard(){
     const ui = Store.data.settings.ui || {}; const theme = ui.theme || 'system'; const accent = ui.accent || 'teal';
     return `<div class="card">
@@ -334,6 +348,7 @@ const Views = {
     return `<div class="topbar"><h1>Menú</h1></div>
       <h2>Gestión</h2><div class="menu-grid">${item('#/cuentas', 'wallet', 'Cuentas')}${item('#/presupuesto', 'target', 'Presupuesto')}${item('#/categorias', 'tag', 'Categorías')}${item('#/personas', 'users', 'Personas')}${item('#/tasas', 'coins', 'Tasas')}${item('#/balance', 'scale', 'Balance')}</div>
       ${App.modules.some(m=>m.menu && m.menu.length) ? `<h2>Mi vida</h2><div class="menu-grid">${App.modules.flatMap(m=>m.menu || []).map(x=>item(x.hash, x.icon || 'grid', x.label)).join('')}</div>` : ''}
+      <h2>Avisos</h2>${this.notifyCard()}
       <h2>Apariencia</h2>${this.appearanceCard()}
       <h2>Nube</h2>${this.syncCard()}
       <h2>Datos</h2><div class="card tight"><div class="list">

@@ -1,0 +1,9 @@
+{
+  "name": "mis-finanzas-avisos",
+  "private": true,
+  "description": "Robot de recordatorios por Web Push (corre en GitHub Actions)",
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "web-push": "^3.6.7"
+  }
+}

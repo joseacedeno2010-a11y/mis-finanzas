@@ -2,3 +2,5 @@ capturas/
 .claude/
 Thumbs.db
 captura de aplicacion de todo en uno/
+servidor/node_modules/
+servidor/package-lock.json
